@@ -1,0 +1,87 @@
+<app-display
+    [diagram]="displayService.showHints() && displayService.reachabilityTokenGameEnabled() ? displayService.reachabilityPetriNetPreview() : (displayService.diagram())"
+    [tokenGameMode]="displayService.showHints() && displayService.reachabilityTokenGameEnabled()"
+    [readonlyMode]="!displayService.showHints() || !displayService.reachabilityTokenGameEnabled()"
+    tokenGameContext="reachability">
+</app-display>
+
+<app-toolbox
+    [(activeTool)]="selectedTool"
+    (clearCanvas)="clearCanvas()"
+    [buttonInput]="['arc']"
+    [showLayoutButton]="true"
+    [showLightbulbButton]="true"
+    (layout)="applyLayout()">
+    @if (showHints()) {
+        <app-toolbox-text-button label="Generate Reachability Graph"
+                                 (click)="generateGraph()">
+        </app-toolbox-text-button>
+    }
+</app-toolbox>
+
+<svg:svg appSvgDefsIdContext
+         #appSvgDefsIdContext="svgDefsIdContext"
+         class="standard-canvas"
+         [class.smooth-height]="resizeController.enableSmoothHeight()"
+         xmlns:svg="http://www.w3.org/2000/svg"
+         (pointerdown)="onCanvasPointerDown($event)"
+         (pointermove)="onCanvasPointerMove($event)"
+         (pointerup)="onCanvasPointerUp($event)"
+         [style.height.px]="resizeController.canvasHeight()"
+         [style.cursor]="canvasCursor()"
+>
+
+    @if (placeIds().length > 0) {
+        <text x="15" y="25" class="marking-order-label">Marking order: ({{ placeIds().join(', ') }})</text>
+    }
+
+    <svg:defs>
+        <filter [id]="`outlineEffect-${appSvgDefsIdContext.idSuffix}`"
+                color-interpolation-filters="sRGB">
+            <feMorphology in="SourceAlpha"
+                          result="MORPH"
+                          operator="dilate"
+                          radius="2"></feMorphology>
+            <feFlood flood-color="#ffffff"
+                     result="WHITE"></feFlood>
+            <feComposite in="WHITE"
+                         in2="MORPH"
+                         operator="in"
+                         result="OUTLINE"></feComposite>
+            <feMerge>
+                <feMergeNode in="OUTLINE"></feMergeNode>
+                <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+        </filter>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="var(--apple-primary)"></feDropShadow>
+        </filter>
+    </svg:defs>
+
+    @if (startArrowEdge()) {
+        <g SvgEdge
+           [edge]="startArrowEdge()"
+           [readonlyMode]="selectedTool() === 'eraser' || selectedTool()==='lightbulb'" />
+    }
+
+    @for (edge of visualEdges(); track $index) {
+        <g SvgEdge
+           [edge]="edge"
+           [requestEdit]="isEdgeToEdit(edge)"
+           [readonlyMode]="selectedTool() === 'eraser' || selectedTool()==='lightbulb'"
+           [allowEdgeLabelModification]="true"
+           [showHints]="showHints()" />
+    }
+
+    @for (node of graph()?.nodes; track node.id) {
+        <g SvgNode
+           [diagramNode]="node"
+           [diagramNodes]="graph()?.nodes ?? []"
+           [enforceUniqueLabels]="true"
+           [readonlyMode]="selectedTool() === 'eraser' || selectedTool()==='lightbulb'"
+           [dragAndDropEnabled]="selectedTool() !== 'arc' && selectedTool() !== 'eraser' && selectedTool()!=='lightbulb'"
+           [placeIds]="placeIds()"
+           [showHints]="showHints()"
+           (pointerdown)="onNodePointerDown($event, node)" />
+    }
+</svg:svg>

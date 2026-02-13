@@ -1,0 +1,11 @@
+.flex-centered-space-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.marking-order-label {
+    font-size: 14px;
+    fill: var(--apple-text-secondary, #666);
+}

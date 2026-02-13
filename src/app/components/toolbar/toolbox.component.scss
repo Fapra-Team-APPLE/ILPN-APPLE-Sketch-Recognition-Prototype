@@ -1,0 +1,33 @@
+.shape-btn {
+    background: transparent;
+    color: inherit;
+    margin: 10px;
+    border-radius: 5px;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    &.toolActive {
+        border: 2px solid #4758B8;
+    }
+
+    &:hover {
+        background: #e5e7eb;
+    }
+
+}
+
+.toolContainer {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    border: 2px solid darkgrey;
+    font-weight: 300;
+    font-size: 18px;
+    height: auto;
+    width: auto;
+    padding-right: 10px;
+}

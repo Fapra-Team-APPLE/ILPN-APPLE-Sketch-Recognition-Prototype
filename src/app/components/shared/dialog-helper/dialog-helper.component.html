@@ -1,0 +1,25 @@
+<h2 mat-dialog-title [class.error-title]="data.isError">{{ data.title }}</h2>
+
+<mat-dialog-content>
+    <p class="message">{{ data.message }}</p>
+
+    @if (data.hint) {
+        <mat-accordion class="hint-accordion">
+            <mat-expansion-panel>
+                <mat-expansion-panel-header>
+                    <mat-panel-title>
+                        <mat-icon>info</mat-icon>
+                        <span>Hint</span>
+                    </mat-panel-title>
+                </mat-expansion-panel-header>
+                <p class="hint">{{ data.hint }}</p>
+            </mat-expansion-panel>
+        </mat-accordion>
+    }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-raised-button mat-dialog-close [color]="data.isError ? 'warn' : 'primary'">
+        Close
+    </button>
+</mat-dialog-actions>

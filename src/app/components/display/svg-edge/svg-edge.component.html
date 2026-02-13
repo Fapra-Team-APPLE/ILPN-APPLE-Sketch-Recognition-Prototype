@@ -1,0 +1,126 @@
+<svg:g (mouseenter)="onGroupHoverStart()" (mouseleave)="onGroupHoverStop()" xmlns:svg="http://www.w3.org/2000/svg">
+    <svg:defs>
+        <svg:marker [id]="arrowHeadId" viewBox="0 0 10 7" markerWidth="20" markerHeight="14" refX="10" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+            <svg:polygon points="0 0, 10 3.5, 0 7"
+                         fill="black"
+                         [class.fill-valid]="validationStatus() === 'valid'"
+                         [class.fill-invalid]="validationStatus() === 'invalid'"
+                         [class.fill-partly-valid]="validationStatus() === 'partly-valid'">
+            </svg:polygon>
+        </svg:marker>
+    </svg:defs>
+
+    <!-- Unsichtbare dicke Linie, damit die Group leichter zu treffen ist -->
+    <!-- Stroke-Width von nur 30, da die Kantenlabels bei Loops sonst teilweise durch die unsichtbare Linie der nächstgrößeren Loop-Kante verdeckt werden -->
+    <svg:path [attr.d]="pathData()"
+              [attr.data-editable]="!readonlyMode() && allowEdgeLabelModification()"
+              (pointerdown)="!readonlyMode() && $event.stopPropagation()"
+              (dblclick)="!readonlyMode() && allowEdgeLabelModification() && onLabelDblClick($event)"
+              fill="none"
+              stroke="transparent"
+              stroke-width="30">
+    </svg:path>
+    <svg:path [attr.d]="pathData()"
+              fill="none"
+              stroke="black"
+              stroke-width="2"
+              [attr.marker-end]="`url(#${arrowHeadId})`"
+              [class.edge-valid]="validationStatus() === 'valid'"
+              [class.edge-invalid]="validationStatus() === 'invalid'"
+              [class.edge-partly-valid]="validationStatus() === 'partly-valid'">
+    </svg:path>
+
+
+    @if (!isEditing()) {
+
+        @if (weight() !== 1) {
+            <svg:text [attr.x]="midPoint().x"
+                      [attr.y]="midPoint().y - 5"
+                      text-anchor="middle"
+                      font-size="12"
+                      fill="black"
+                      [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`"
+                      [class.text-valid]="validationStatus() === 'valid'"
+                      [class.text-invalid]="validationStatus() === 'invalid'"
+                      [class.text-partly-valid]="validationStatus() === 'partly-valid'">
+                {{ weight() }}
+            </svg:text>
+        }
+
+        <svg:text
+            [attr.data-editable]="!readonlyMode() && allowEdgeLabelModification()"
+            (pointerdown)="!readonlyMode() && $event.stopPropagation()"
+            (dblclick)="!readonlyMode() && allowEdgeLabelModification() && onLabelDblClick($event)"
+            style="user-select: none;"
+            [attr.x]="midPoint().x"
+            [attr.y]="midPoint().y - 5"
+            text-anchor="middle"
+            font-size="12"
+            fill="black"
+            [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`"
+            [class.text-valid]="validationStatus() === 'valid'"
+            [class.text-invalid]="validationStatus() === 'invalid'"
+            [class.text-partly-valid]="validationStatus() === 'partly-valid'">
+            {{ label() }}
+        </svg:text>
+
+
+    } @else {
+        <svg:foreignObject
+            [attr.x]="midPoint().x - EDIT_BOX_WIDTH/2"
+            [attr.y]="midPoint().y - EDIT_BOX_HEIGHT/2"
+            [attr.width]="EDIT_BOX_WIDTH"
+            [attr.height]="EDIT_BOX_HEIGHT"
+            (pointerdown)="$event.stopPropagation()">
+            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+                <input #labelInput
+                       type="text"
+                       [value]="editValue()"
+                       (pointerdown)="$event.stopPropagation()"
+                       (input)="onInputChange($event)"
+                       (keydown.enter)="onKeydownEnter($event)"
+                       (keydown.escape)="onKeydownEscape($event)"
+                       (blur)="commitEdit()"
+                       style="width:100%; box-sizing:border-box; padding:2px 4px; font-size:12px;" />
+            </div>
+        </svg:foreignObject>
+    }
+
+    @if (showControls() && !isEditing()) {
+        <svg:g>
+            <svg:rect [attr.x]="midPoint().x - 22"
+                      [attr.y]="midPoint().y + 2"
+                      width="18"
+                      height="16"
+                      rx="3"
+                      class="hover-btn"
+                      [class.disabled]="weight() <= 1"
+                      (click)="decrementWeight()">
+            </svg:rect>
+            <svg:text [attr.x]="midPoint().x - 13"
+                      [attr.y]="midPoint().y + 14"
+                      class="hover-btn-text"
+                      [class.disabled-text]="weight() <= 1"
+                      font-size="12"
+                      text-anchor="middle">
+                −
+            </svg:text>
+
+            <svg:rect [attr.x]="midPoint().x + 4"
+                      [attr.y]="midPoint().y + 2"
+                      width="18"
+                      height="16"
+                      rx="3"
+                      class="hover-btn"
+                      (click)="incrementWeight()">
+            </svg:rect>
+            <svg:text [attr.x]="midPoint().x + 13"
+                      [attr.y]="midPoint().y + 14"
+                      class="hover-btn-text"
+                      font-size="12"
+                      text-anchor="middle">
+                +
+            </svg:text>
+        </svg:g>
+    }
+</svg:g>

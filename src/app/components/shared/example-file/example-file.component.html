@@ -1,0 +1,11 @@
+<app-file-card [draggable]="true"
+               [title]="title()"
+               [description]="description()"
+               (mouseenter)="hoverStart($event)"
+               (mouseleave)="hoverEnd($event)"
+               (dragstart)="addFileLink($event)"
+               style="cursor: grab">
+    <div class="square flex-row-align-center-center item-no-grow" file-card-icon>
+        🍎
+    </div>
+</app-file-card>

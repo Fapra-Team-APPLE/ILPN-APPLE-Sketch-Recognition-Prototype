@@ -1,0 +1,44 @@
+// Verhindert Textselektion innerhalb der Canvas, z. B. beim Kanten-Ziehen
+.standard-canvas {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+// Vermeidet, dass Ghost-Node Pointer-events abfängt
+.ghost-node{
+    pointer-events: none;
+    fill: black;
+    fill-opacity: 0.05;
+    stroke: black;
+    stroke-opacity: 0.5;
+    border: solid black;
+}
+
+:host {
+    position: relative;
+    display: flex;
+}
+
+:host.readonly-mode .standard-canvas {
+    filter: grayscale(0.4) brightness(0.95);
+}
+
+.readonly-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(211, 211, 211, 0.35);
+    pointer-events: none;
+}
+
+.empty-diagram-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: gray;
+    pointer-events: none;
+    max-width: 55rem;
+    white-space: pre-wrap;
+}

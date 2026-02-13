@@ -1,0 +1,70 @@
+<!--    Die Toolbox meldet über "toolSelected" welches Werkzeug aktiviert wurde.-->
+<!--    Information direkt an das Display weitergeleitet: Burch Binding des Signals "selectedTool" des DrawingComponents.-->
+
+<app-toolbox
+    [(activeTool)]="selectedTool"
+    (clearCanvas)="clearCanvas()"
+    [buttonInput]="['place','transition','arc']"
+    [showLayoutButton]="true"
+    (layout)="applyLayout()">
+    @if (!showHints() || (showHints() && (givenPnCtrl.value ?? '').trim().length > 0)) {
+        <mat-form-field appearance="outline"
+                        subscriptSizing="dynamic"
+                        class="mat-input-height-40px"
+                        style="min-width: 700px;">
+            @if (!showHints()) {
+                <mat-label>Enter Petri net to validate against drawing</mat-label>
+            }
+            @if (showHints()) {
+                <mat-label>Exam Mode only: Validate Petri net against definition</mat-label>
+            }
+            <input matInput
+                   placeholder="Example: ({p1,p2},{t1},2x(p1,t1)+(t1,p2),3xp1)"
+                   [formControl]="givenPnCtrl">
+        </mat-form-field>
+    }
+</app-toolbox>
+<app-display [(diagram)]="displayService.diagram"
+             [dragAndDropEnabled]="true"
+             [allowEdgeWeightModification]="true"
+             [allowTokenCountModification]="true"
+             [selectedTool]="selectedTool()"
+             emptyDiagramMessage="Define a petri net or drag a file here"
+             [showHints]="displayService.showHints()"
+             [enforceUniqueLabels]="true"
+             (fileContentChange)="processSourceChange($event)">
+</app-display>
+
+
+<div class="drawing-footer">
+    <mat-form-field appearance="outline"
+                    class="pn-input-field">
+        <mat-label>Enter petri net to display</mat-label>
+        <input matInput
+               placeholder="Example: ({p1,p2},{t},2x(p1,t)+(t,p2),3xp1)"
+               autofocus
+               [formControl]="petriNetDefinitionControl"
+               (keyup.enter)="showPetriNet()">
+        @if (petriNetDefinitionControl.hasError("message")) {
+            <mat-icon matSuffix
+                      [matTooltip]="petriNetDefinitionControl.getError('message')"
+                      color="warn">
+                error
+            </mat-icon>
+        } @else {
+            <mat-icon matSuffix
+                      matTooltip="[enter] to show petri net"
+                      (click)="showPetriNet()">
+                subdirectory_arrow_left
+            </mat-icon>
+        }
+    </mat-form-field>
+    <div class="example-files">
+        <app-example-file title="File"
+                          link="assets/example.json"
+                          description="First example .json Petri net"></app-example-file>
+        <app-example-file title="File"
+                          link="assets/example2.json"
+                          description="Second example .json Petri net"></app-example-file>
+    </div>
+</div>

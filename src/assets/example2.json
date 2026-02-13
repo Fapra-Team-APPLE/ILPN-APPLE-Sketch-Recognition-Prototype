@@ -1,0 +1,86 @@
+{
+  "places": [
+    "ticket",
+    "coffee",
+    "code",
+    "review",
+    "merged",
+    "frust"
+  ],
+  "transitions": [
+    "branch",
+    "PR",
+    "bug",
+    "approved",
+    "commit"
+  ],
+  "arcs": {
+    "branch,code": 1,
+    "code,PR": 1,
+    "PR,review": 1,
+    "review,bug": 1,
+    "bug,code": 1,
+    "review,approved": 1,
+    "approved,merged": 1,
+    "coffee,PR": 1,
+    "ticket,branch": 1,
+    "code,commit": 1,
+    "commit,code": 1,
+    "coffee,commit": 1,
+    "bug,frust": 1
+  },
+  "labels": {
+    "p1": "frust"
+  },
+  "actions": [],
+  "marking": {
+    "ticket": 1,
+    "coffee": 2
+  },
+  "layout": {
+    "ticket": {
+      "x": 65,
+      "y": 143
+    },
+    "coffee": {
+      "x": 615,
+      "y": 65
+    },
+    "code": {
+      "x": 421,
+      "y": 226
+    },
+    "review": {
+      "x": 755,
+      "y": 335
+    },
+    "merged": {
+      "x": 1113,
+      "y": 335
+    },
+    "frust": {
+      "x": 422,
+      "y": 335
+    },
+    "branch": {
+      "x": 222,
+      "y": 226
+    },
+    "PR": {
+      "x": 615,
+      "y": 226
+    },
+    "bug": {
+      "x": 560,
+      "y": 335
+    },
+    "approved": {
+      "x": 945,
+      "y": 335
+    },
+    "commit": {
+      "x": 421,
+      "y": 65
+    }
+  }
+}

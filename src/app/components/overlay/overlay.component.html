@@ -1,0 +1,36 @@
+<div class="overlay-card">
+    <div class="header">
+        <strong class="title">{{ elementTitle }}</strong>
+    </div>
+
+
+    <div class="row">
+        <strong>Validity Status:</strong> {{ validityStatus ?? 'n/a' }}
+    </div>
+
+    @if (hasReasons) {
+        <div class="row">
+            @if (validityReasons.length === 1) {
+                <strong>Reason:</strong>
+                {{ validityReasons[0] }}
+            } @else {
+                <strong>Reasons:</strong>
+                <ul class="reasons">
+                    @for (reason of validityReasons; track reason) {
+                        <li>
+                            {{ reason }}
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+
+    <!-- Optional: wenn invalid/partly-valid aber reasons leer wären -->
+    @if (!hasReasons && (validityStatus === 'invalid' || validityStatus === 'partly-valid')) {
+        <div class="row">
+            <em>No reasons provided.</em>
+        </div>
+    }
+
+</div>

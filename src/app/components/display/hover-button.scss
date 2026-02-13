@@ -1,0 +1,30 @@
+.hover-btn {
+    fill: #232323;
+    opacity: 0.5;
+    cursor: pointer;
+    stroke: black;
+    stroke-width: 1;
+    transition: opacity 120ms ease-in-out, fill 120ms ease-in-out;
+
+    &:hover {
+        opacity: 0.8;
+        fill: black;
+    }
+
+    &.disabled, &.disabled:hover {
+        fill: #636363;
+        opacity: 0.25;
+        cursor: default;
+    }
+}
+
+.hover-btn-text {
+    fill: white;
+    user-select: none;
+    pointer-events: none;
+    font-weight: 600;
+
+    &.disabled-text {
+        fill: #ececec;
+    }
+}

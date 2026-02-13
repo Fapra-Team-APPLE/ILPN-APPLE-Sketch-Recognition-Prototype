@@ -1,0 +1,45 @@
+<div class="toolContainer">
+    <div style="display:flex; align-items:center">
+        @for (toolButton of buttonInput(); track toolButton) {
+            <app-toolbutton
+                [buttonType]="toolButton"
+                [activeType]="activeTool()"
+                (selectTool)="toggleTool(toolButton)"
+            />
+        }
+
+        @if (buttonInput().length > 0) {
+            <app-toolbar-divider></app-toolbar-divider>
+        }
+        @if (showEraserButton()) {
+            <app-toolbutton
+                buttonType="eraser"
+                [activeType]="activeTool()"
+                (selectTool)="toggleTool('eraser')" />
+        }
+        <app-toolbutton
+            buttonType="clear"
+            (selectTool)="onDeleteClick()" />
+
+        @if (showLayoutButton() || (showLightbulbButton() && displayService.showHints())) {
+            <app-toolbar-divider></app-toolbar-divider>
+        }
+
+        @if (showLayoutButton()) {
+            <app-toolbutton
+                buttonType="layout"
+                (selectTool)="layout.emit()" />
+        }
+
+        @if (showLightbulbButton() && displayService.showHints()) {
+            <app-toolbutton
+                buttonType="lightbulb"
+                [activeType]="activeTool()"
+                (selectTool)="toggleTool('lightbulb')"
+            />
+        }
+    </div>
+    <div style="display: flex; align-items: center">
+        <ng-content></ng-content>
+    </div>
+</div>

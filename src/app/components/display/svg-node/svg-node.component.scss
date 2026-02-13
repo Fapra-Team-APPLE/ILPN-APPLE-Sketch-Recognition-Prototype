@@ -1,0 +1,23 @@
+.draggable-node {
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    touch-action: none;
+}
+
+.draggable-node:active {
+    cursor: grabbing;
+}
+
+::ng-deep {
+    [data-editable="true"] {
+        cursor: text;
+    }
+
+    /* Wenn ein Kind editiert wird, keinen grab Cursor anzeigen */
+    [data-editing="true"] .draggable-node,
+    .draggable-node[data-editing="true"] {
+        cursor: text;
+    }
+}

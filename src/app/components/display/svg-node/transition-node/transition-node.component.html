@@ -1,0 +1,55 @@
+<svg:g xmlns:svg="http://www.w3.org/2000/svg" [style.cursor]="tokenGameMode() && isActivated() ? 'pointer' : null">
+    <svg:rect
+        [attr.x]="rect()?.x"
+        [attr.y]="rect()?.y"
+        [attr.width]="rect()?.w"
+        [attr.height]="rect()?.h"
+        [attr.fill]="'white'"
+        stroke="black"
+        [class.node-valid]="validationStatus() === 'valid'"
+        [class.node-invalid]="validationStatus() === 'invalid'"
+        [class.node-partly-valid]="validationStatus() === 'partly-valid'"
+        [class.node-activated]="isActivated()"
+    ></svg:rect>
+
+    @if (!isEditing()) {
+        <svg:text #textEl
+                  [attr.data-editable]="!readonlyMode() && !tokenGameMode()"
+                  (pointerdown)="!readonlyMode() && $event.stopPropagation()"
+                  (dblclick)="onLabelDblClick($event)"
+                  [attr.x]="(rect()?.x ?? 0) + (rect()?.w ?? 0) / 2"
+                  [attr.y]="(rect()?.y ?? 0) + (rect()?.h ?? 0) / 2"
+                  text-anchor="middle"
+                  dominant-baseline="middle"
+                  dy="0.1em"
+                  font-size="12"
+                  fill="black"
+                  [attr.textLength]="textNeedsAdjustment() ? availableTextWidth() : null"
+                  [attr.lengthAdjust]="textNeedsAdjustment() ? 'spacingAndGlyphs' : null"
+                  [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`">{{ label() }}
+        </svg:text>
+    } @else {
+        <svg:foreignObject
+            [attr.x]="(rect()?.x ?? 0) + (rect()?.w ?? 0)/2 - EDIT_BOX_WIDTH/2"
+            [attr.y]="(rect()?.y ?? 0) + (rect()?.h ?? 0)/2 - EDIT_BOX_HEIGHT/2"
+            [attr.width]="EDIT_BOX_WIDTH"
+            [attr.height]="EDIT_BOX_HEIGHT"
+            (pointerdown)="$event.stopPropagation()">
+            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+                <input #labelInput
+                       type="text"
+                       [value]="editValue()"
+                       (pointerdown)="$event.stopPropagation()"
+                       (input)="onInputChange($event)"
+                       (keydown.enter)="onKeydownEnter($event)"
+                       (keydown.escape)="onKeydownEscape($event)"
+                       (blur)="onInputBlur($event)"
+                       [class.invalid]="editInvalid()"
+                       matTooltip="{{invalidLabelTooltip()}}"
+                       [matTooltipDisabled]="!editInvalid()"
+                       matTooltipPosition="above"
+                       style="width:100%; box-sizing:border-box; padding:2px 4px; font-size:12px;" />
+            </div>
+        </svg:foreignObject>
+    }
+</svg:g>

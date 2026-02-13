@@ -1,0 +1,14 @@
+.shape-btn {
+    background: transparent;
+    color: inherit;
+    margin: 10px;
+    border: 2px solid;
+    border-radius: 5px;
+    height: 40px;
+
+    mat-icon {
+        min-height: 24px;
+        min-width: 24px;
+        font-size: 1.5rem;
+    }
+}

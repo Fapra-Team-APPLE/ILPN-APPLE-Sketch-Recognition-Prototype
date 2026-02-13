@@ -1,0 +1,25 @@
+.drawing-footer {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 15px;
+  margin-top: 10px;
+
+  .pn-input-field {
+    width: 100%;
+  }
+
+  .example-files {
+    display: flex;
+    gap: 15px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 1919px) { // Kleiner als Full HD (1920px)
+    flex-direction: column;
+
+    .example-files {
+      align-self: flex-end;
+    }
+  }
+}

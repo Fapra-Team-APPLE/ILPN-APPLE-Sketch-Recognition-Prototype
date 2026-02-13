@@ -1,39 +1,143 @@
-<div class="flexColumnAlignStartStretch">
+<div class="flex-column-align-start-stretch">
     <!--  Header  -->
-    <div class="flexRowAlignCenterCenter">
-        <a href="https://www.fernuni-hagen.de/ilovepetrinets/"><h1>I <span class="red">❤</span> Petri Nets</h1></a>
-    </div>
-    <h2>
-        <i>Fachpraktikum Programmiersysteme WiSe25/26</i> by<br>
-        ..., ..., ..., ... and ...
-    </h2>
+    <div class="header" [class.collapsed]="focusMode()">
+        @if (!focusMode()) {
+            <a href="https://www.fernuni-hagen.de/ilovepetrinets/">
+                <h1>I <span class="red">❤</span> Petri Nets</h1>
+            </a>
+        }
+        <div class="header-controls">
+            <button mat-icon-button
+                    (click)="focusMode.set(!focusMode())"
+                    [matTooltip]="focusMode() ? 'Exit focus mode' : 'Enter focus mode (hide header and footer)'"
+                    style="margin-right: -15px">
+                <mat-icon>{{focusMode() ? 'fullscreen_exit' : 'fullscreen'}}</mat-icon>
+            </button>
+            <app-toolbar-divider></app-toolbar-divider>
 
-    <!--    Main content    -->
-    <app-display class="padding full-size" (fileContent)="processSourceChange($event)"></app-display>
+            <mat-slide-toggle [hideIcon]="true"
+                              color="primary"
+                              [ngModel]="displayService.examMode()"
+                              (ngModelChange)="onToggleShowHints($event)">
+                <span class="hint-toggle-label">Exam Mode</span>
+            </mat-slide-toggle>
 
+            <mat-icon color="primary"
+                      class="info-icon"
+                      [matMenuTriggerFor]="examModeInfoMenu">info
+            </mat-icon>
+            <mat-menu #examModeInfoMenu="matMenu">
+                <div style="padding: 0 1rem;">
+                    <p>
+                        Activating the exam mode <b>hides all hints and validation errors</b> and shows a "Validate All" button to manually validate your solutions.<br>
+                        It's not necessary to fill all tabs.
+                    </p>
+                </div>
+            </mat-menu>
 
-    <div class="flexRowAlignSpaceEvenlyStart">
-        <div class="buttonWrapperWidth flexColumnAlignStartCenter">
-            <app-example-button title="Button" (buttonPressed)="processButtonClick()"></app-example-button>
-
-            @if (buttonClickCount() > 0) {
-                Number of clicks: {{buttonClickCount()}}!
+            @if (!displayService.showHints()) {
+                <app-toolbar-divider></app-toolbar-divider>
+                <button mat-raised-button color="primary" (click)="validateAll()">
+                    Validate All
+                </button>
             }
         </div>
-
-        <app-example-file title="File" link="assets/example.json" description="An example .json Petri net"></app-example-file>
-
-        <mat-form-field appearance="outline">
-            <mat-label>File content</mat-label>
-            <textarea matInput
-                      cdkTextareaAutosize
-                      cdkAutosizeMinRows="10"
-                      cdkAutosizeMaxRows="20"
-                      [formControl]="textareaFc"></textarea>
-        </mat-form-field>
     </div>
+    @if (!focusMode()) {
+        <h2>
+            <i>
+                APPLE - <span class="bold">A</span>dvanced <span class="bold">P</span>latform for <span class="bold">P</span>etri Net
+                <span class="bold">L</span>earning <span class="bold">E</span>valuation
+            </i> by
+            <br>
+            <a [href]="getGithubLinkForUsername('ayleencw')">ayleencw</a>,
+            <a [href]="getGithubLinkForUsername('f3ffi')">f3ffi</a>,
+            <a [href]="getGithubLinkForUsername('johberd')">johberd</a>,
+            <a [href]="getGithubLinkForUsername('krm-code')">krm-code</a> and
+            <a [href]="getGithubLinkForUsername('rufms')">rufms</a>
+        </h2>
+    }
+
+    <!--    Main content    -->
+    <mat-tab-group [animationDuration]="0"
+                   [preserveContent]="true"
+                   [(selectedIndex)]="selectedTabIndex"
+                   class="static-content-tabs">
+        <mat-tab label="Petri Net">
+            <ng-template mat-tab-label>
+                Petri Net
+                @if (getValidationError('Petri Net'); as error) {
+                    <mat-icon class="tab-icon" color="warn" [matTooltip]="error">warning</mat-icon>
+                } @else if (getValidationSuccessMessage('Petri Net'); as info) {
+                    <mat-icon class="tab-icon success-icon" [matTooltip]="info">check_circle</mat-icon>
+                } @else if (getValidationWarningMessage('Petri Net'); as warning) {
+                    <mat-icon class="tab-icon warning-icon" [matTooltip]="warning">warning</mat-icon>
+                }
+            </ng-template>
+            <ng-template matTabContent>
+                <div class="tab-content">
+                    <app-drawing></app-drawing>
+                </div>
+            </ng-template>
+        </mat-tab>
+        <mat-tab [disabled]="!petriNetSet()">
+            <ng-template mat-tab-label>
+                Firing Sequences
+                @if (getValidationError('Firing Sequences'); as error) {
+                    <mat-icon class="tab-icon" color="warn" [matTooltip]="error">warning</mat-icon>
+                } @else if (getValidationSuccessMessage('Firing Sequences'); as info) {
+                    <mat-icon class="tab-icon success-icon" [matTooltip]="info">check_circle</mat-icon>
+                } @else if (getValidationWarningMessage('Firing Sequences'); as warning) {
+                    <mat-icon class="tab-icon warning-icon" [matTooltip]="warning">warning</mat-icon>
+                }
+            </ng-template>
+            <ng-template matTabContent>
+                <div class="tab-content">
+                    <app-transition-sequences></app-transition-sequences>
+                </div>
+            </ng-template>
+        </mat-tab>
+
+        <mat-tab [disabled]="!petriNetSet()">
+            <ng-template mat-tab-label>
+                Reachability Graph
+                @if (getValidationError('Reachability Graph'); as error) {
+                    <mat-icon class="tab-icon" color="warn" [matTooltip]="error">warning</mat-icon>
+                } @else if (getValidationSuccessMessage('Reachability Graph'); as info) {
+                    <mat-icon class="tab-icon success-icon" [matTooltip]="info">check_circle</mat-icon>
+                } @else if (getValidationWarningMessage('Reachability Graph'); as warning) {
+                    <mat-icon class="tab-icon warning-icon" [matTooltip]="warning">warning</mat-icon>
+                }
+            </ng-template>
+            <ng-template matTabContent>
+                <div class="tab-content">
+                    <app-reachability></app-reachability>
+                </div>
+            </ng-template>
+        </mat-tab>
+
+        <mat-tab [disabled]="!petriNetSet()">
+            <ng-template mat-tab-label>
+                Process Nets
+                @if (getValidationError('Process Net'); as error) {
+                    <mat-icon class="tab-icon" color="warn" [matTooltip]="error">warning</mat-icon>
+                } @else if (getValidationSuccessMessage('Process Net'); as info) {
+                    <mat-icon class="tab-icon success-icon" [matTooltip]="info">check_circle</mat-icon>
+                } @else if (getValidationWarningMessage('Process Net'); as warning) {
+                    <mat-icon class="tab-icon warning-icon" [matTooltip]="warning">warning</mat-icon>
+                }
+            </ng-template>
+            <ng-template matTabContent>
+                <div class="tab-content">
+                    <app-process-net></app-process-net>
+                </div>
+            </ng-template>
+        </mat-tab>
+    </mat-tab-group>
 
     <!--  Footer  -->
-    <hr>
-    <app-footer></app-footer>
+    @if (!focusMode()) {
+        <hr>
+        <app-footer></app-footer>
+    }
 </div>

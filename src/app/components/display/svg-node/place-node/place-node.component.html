@@ -1,0 +1,112 @@
+<svg:g xmlns:svg="http://www.w3.org/2000/svg"
+       (mouseenter)="hovered.set(true)"
+       (mouseleave)="hovered.set(false)">
+    <svg:circle
+        [attr.cx]="circle()?.cx"
+        [attr.cy]="circle()?.cy"
+        [attr.r]="circle()?.r"
+        [attr.fill]="'white'"
+        stroke="black"
+        [class.node-valid]="validationStatus() === 'valid'"
+        [class.node-invalid]="validationStatus() === 'invalid'"
+        [class.node-partly-valid]="validationStatus() === 'partly-valid'"
+    ></svg:circle>
+
+    @for (dot of tokenDots(); track $index) {
+        <svg:circle
+            [attr.cx]="dot.cx"
+            [attr.cy]="dot.cy"
+            r="5"
+            fill="black"
+            pointer-events="none"
+        ></svg:circle>
+    }
+
+    <svg:text
+        [attr.x]="circle()?.cx"
+        [attr.y]="(circle()?.cy ?? 0) + 5"
+        text-anchor="middle"
+        font-size="14"
+        font-weight="bold"
+        fill="black">{{ tokenText() }}
+    </svg:text>
+
+    @if (showTokenControls()) {
+        <!-- Hover-Overlay: Plus/Minus Buttons direkt am Kreis, analog zu Kantengewichten
+          Jeder Klick ruft incrementTokenCount()/ decrementTokenCount() der PlaceNodeComponente auf
+          Dachach:Die PlaceNodeComponent aktualisiert das _tokenCount-Signal des aktuellen DiagramNode-Inputs-->
+        <svg:g (pointerdown)="$event.stopPropagation()"
+               (click)="$event.stopPropagation()">
+            <svg:rect
+                [attr.x]="(circle()?.cx ?? 0) - 20"
+                [attr.y]="(circle()?.cy ?? 0) - (circle()?.r ?? 0) - 6"
+                width="18"
+                height="16"
+                rx="3"
+                class="hover-btn"
+                [class.disabled]="tokenCount() <= 0"
+                (click)="decrementTokenCount()"></svg:rect>
+            <svg:text
+                [attr.x]="(circle()?.cx ?? 0) - 11"
+                [attr.y]="(circle()?.cy ?? 0) + 6 - (circle()?.r ?? 0)"
+                font-size="12"
+                text-anchor="middle"
+                class="hover-btn-text"
+                [class.disabled-text]="tokenCount() <= 0">−
+            </svg:text>
+
+            <svg:rect
+                [attr.x]="(circle()?.cx ?? 0) + 6"
+                [attr.y]="(circle()?.cy ?? 0) - (circle()?.r ?? 0) - 6"
+                width="18"
+                height="16"
+                rx="3"
+                class="hover-btn"
+                (click)="incrementTokenCount()"></svg:rect>
+            <svg:text
+                [attr.x]="(circle()?.cx ?? 0) + 15"
+                [attr.y]="(circle()?.cy ?? 0) + 6 - (circle()?.r ?? 0)"
+                font-size="12"
+                text-anchor="middle"
+                class="hover-btn-text">+
+            </svg:text>
+        </svg:g>
+    }
+
+    @if (!isEditing()) {
+        <svg:text
+            [attr.data-editable]="!readonlyMode() && !tokenGameMode()"
+            (pointerdown)="!readonlyMode() && $event.stopPropagation()"
+            (dblclick)="onLabelDblClick($event)"
+            [attr.x]="circle()?.cx"
+            [attr.y]="(circle()?.cy ?? 0) + (circle()?.r ?? 0) + 15"
+            text-anchor="middle"
+            font-size="12"
+            fill="black"
+            [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`">{{ label() }}
+        </svg:text>
+    } @else {
+        <svg:foreignObject
+            [attr.x]="(circle()?.cx ?? 0) - EDIT_BOX_WIDTH / 2"
+            [attr.y]="(circle()?.cy ?? 0) + (circle()?.r ?? 0) + 2 - EDIT_BOX_HEIGHT / 2"
+            [attr.width]="EDIT_BOX_WIDTH"
+            [attr.height]="EDIT_BOX_HEIGHT"
+            (pointerdown)="$event.stopPropagation()">
+            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+                <input #labelInput
+                       type="text"
+                       [value]="editValue()"
+                       (pointerdown)="$event.stopPropagation()"
+                       (input)="onInputChange($event)"
+                       (keydown.enter)="onKeydownEnter($event)"
+                       (keydown.escape)="onKeydownEscape($event)"
+                       (blur)="onInputBlur($event)"
+                       [class.invalid]="editInvalid()"
+                       matTooltip="{{invalidLabelTooltip()}}"
+                       [matTooltipDisabled]="!editInvalid()"
+                       matTooltipPosition="above"
+                       style="width:100%; box-sizing:border-box; padding:2px 4px; font-size:12px;" />
+            </div>
+        </svg:foreignObject>
+    }
+</svg:g>

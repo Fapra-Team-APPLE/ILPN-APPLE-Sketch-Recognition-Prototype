@@ -1,0 +1,13 @@
+<button
+    mat-icon-button
+    class="shape-btn"
+    matTooltip="{{buttonConfig?.tooltip}}"
+    [class.toolActive]=isButtonActive()
+    (click)=onClick()
+>
+    @if (buttonConfig?.svgIcon; as svg) {
+        <mat-icon [svgIcon]="svg"></mat-icon>
+    } @else {
+        <mat-icon>{{ buttonConfig?.icon }}</mat-icon>
+    }
+</button>

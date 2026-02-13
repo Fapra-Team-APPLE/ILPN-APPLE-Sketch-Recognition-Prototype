@@ -1,7 +1,30 @@
-<svg:polygon
-    xmlns:svg="http://www.w3.org/2000/svg"
-    [attr.points]="points()"
-    [attr.fill]="fillColor()"
-    (mousedown)="mouseDown($event)"
-    (mouseup)="mouseUp($event)"
-/>
+<svg:g xmlns:svg="http://www.w3.org/2000/svg">
+    <svg:g [class.draggable-node]="dragAndDropEnabled()" (pointerdown)="onPointerDown($event)">
+        @if (placeNode()) {
+            <g SvgPlaceNode
+               [diagramNode]="placeNode()"
+               [diagramNodes]="diagramNodes()"
+               [enforceUniqueLabels]="enforceUniqueLabels()"
+               [readonlyMode]="readonlyMode()"
+               [tokenGameMode]="tokenGameMode()"
+               [allowTokenCountModification]="allowTokenCountModification()"
+               (requestFront)="bringToFront()"></g>
+        } @else if (stateNode()) {
+            <g SvgStateNode
+               [diagramNode]="stateNode()"
+               [diagramNodes]="diagramNodes()"
+               [enforceUniqueLabels]="enforceUniqueLabels()"
+               [readonlyMode]="readonlyMode()"
+               [placeIds]="placeIds()"
+               (requestFront)="bringToFront()"></g>
+        } @else if (transitionNode()) {
+            <g SvgTransitionNode
+               [diagramNode]="transitionNode()"
+               [diagramNodes]="diagramNodes()"
+               [enforceUniqueLabels]="enforceUniqueLabels()"
+               [readonlyMode]="readonlyMode()"
+               [tokenGameMode]="tokenGameMode()"
+               (requestFront)="bringToFront()"></g>
+        }
+    </svg:g>
+</svg:g>

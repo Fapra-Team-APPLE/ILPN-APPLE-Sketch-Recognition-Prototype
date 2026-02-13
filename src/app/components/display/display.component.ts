@@ -1,43 +1,204 @@
-import {Component, OnDestroy, output, signal} from '@angular/core';
-import {DisplayService} from '../../services/display.service';
-import {catchError, of, Subscription, take} from 'rxjs';
+import {HttpClient} from '@angular/common/http';
+import {Component, computed, effect, input, model, OnDestroy, output, signal} from '@angular/core';
+import {MatButtonModule} from '@angular/material/button';
+import {MatIcon} from '@angular/material/icon';
+import {MatTooltip} from '@angular/material/tooltip';
+import {catchError, of, take} from 'rxjs';
 import {Diagram} from '../../classes/diagram/diagram';
-import {ExampleFileComponent} from "../example-file/example-file.component";
-import {FileReaderService} from "../../services/file-reader.service";
-import {HttpClient} from "@angular/common/http";
-import {SvgNodeComponent} from "./svg-node/svg-node.component";
+import {DiagramEdge} from '../../classes/diagram/diagram-edge';
+import {DiagramNode} from '../../classes/diagram/diagram-node';
+import {DiagramHint, DiagramNodeKind, IDiagramNode} from '../../classes/diagram/diagram-types';
+import {SvgDefsIdContextDirective} from '../../directives/svg-defs-id-context.directive';
+import {DisplayService} from '../../services/display.service';
+import {ExportService} from '../../services/export.service';
+import {FileReaderService} from '../../services/file-reader.service';
+import {NodeDimensionService} from '../../services/node-dimension.service';
+import {OverlayService} from '../../services/overlay.service';
+import {TabNavigationService} from '../../services/tab-navigation.service';
+import {TransitionSequencesValidationService} from '../../services/transition-sequences-validation.service';
+import {ArcDrawingController} from '../shared/arc-drawing.controller';
+import {hitTest} from '../shared/canvas-helper';
+import {CanvasPanningController} from '../shared/canvas-panning.controller';
+import {CanvasResizeController} from '../shared/canvas-resize.controller';
+import {DownloadButtonComponent} from '../shared/download-button/download-button.component';
+import {EraserController} from '../shared/eraser.controller';
+import {ExampleFileComponent} from '../shared/example-file/example-file.component';
+import {LightbulbController} from '../shared/lightbulb.controller';
+import {TokenGameToggleComponent} from '../shared/tokengame-toggle/token-game-toggle.component';
+import {ToolType} from '../toolbar/tool.types';
+import {SvgEdgeComponent} from './svg-edge/svg-edge.component';
+import {calculateNodeMargins, PLACE_RADIUS, TRANSITION_HEIGHT, TRANSITION_WIDTH} from './svg-node/svg-node';
+import {SvgNodeComponent} from './svg-node/svg-node.component';
 
 @Component({
     selector: 'app-display',
     templateUrl: './display.component.html',
-    imports: [
-        SvgNodeComponent
-    ],
-    styleUrls: ['./display.component.css']
+    providers: [NodeDimensionService],
+    imports: [SvgNodeComponent, SvgEdgeComponent, SvgDefsIdContextDirective, MatButtonModule, MatIcon, MatTooltip, DownloadButtonComponent, TokenGameToggleComponent],
+    styleUrls: ['./display.component.scss'],
+    host: {
+        '[class.eraser-active]': 'this.selectedTool() === "eraser"',
+        '[class.lightbulb-active]': 'this.selectedTool() === "lightbulb"',
+        '[class.readonly-mode]': 'this.readonlyMode()'
+    }
 })
 export class DisplayComponent implements OnDestroy {
 
-    readonly fileContent = output<string>();
+    readonly readonlyMode = input<boolean>(false);
+    readonly allowTokenCountModification = input<boolean>(false);
+    readonly allowEdgeWeightModification = input<boolean>(false);
+    readonly allowEdgeLabelModification = input<boolean>(false);
+    readonly dragAndDropEnabled = input<boolean>(false);
+    readonly showHints = input<boolean>(true);
+    readonly enforceUniqueLabels = input<boolean>(false);
+    readonly selectedTool = input<ToolType | undefined>(undefined);
+    readonly emptyDiagramMessage = input<string | undefined>(undefined);
+    readonly undeletableNodes = input<string[]>([]);
+    readonly fileContentChange = output<string>();
+    readonly diagram = model<Diagram | null>(null);
+    readonly tokenGameMode = input<boolean>(false);
+    readonly resizable = input<boolean>(false);
+    readonly tokenGameContext = input<'sequences' | 'process-net' | 'reachability'>();
+    readonly hint = input<DiagramHint | undefined>(undefined);
 
-    readonly diagram = signal<Diagram | undefined>(undefined);
 
-    private _sub: Subscription;
+    // WritableSignal für GhostNode speichert Mausposition, um diese Weiterzugeben - Werte werden laufend aktualisiert
+    readonly ghostNode = signal<{kind: DiagramNodeKind; x: number; y: number} | null>(null);
 
-    constructor(private _displayService: DisplayService,
-                private _fileReaderService: FileReaderService,
-                private _http: HttpClient) {
+    // Konstanten aus den Node-Komponenten,um Ghost-Nodes genauso (groß) zu zeichnen wie eigentliche Node
+    readonly PLACE_RADIUS = PLACE_RADIUS;
+    readonly TRANSITION_WIDTH = TRANSITION_WIDTH;
+    readonly TRANSITION_HEIGHT = TRANSITION_HEIGHT;
 
-        this._sub = this._displayService.diagram$.subscribe(diagram => {
-            console.log('new diagram');
-            this.diagram.set(diagram)
+    readonly resizeController = new CanvasResizeController();
+
+    private readonly panningController = new CanvasPanningController({
+        canStartPanning: () => !this.readonlyMode() && !this.tokenGameMode() && !this.selectedTool() && (this.diagram()?.nodes?.length ?? 0) > 0,
+        diagram: () => this.diagram(),
+        nodeDimensionService: this.nodeDimensionService
+    });
+
+    readonly canvasCursor = computed(() => {
+        const hasNodes = (this.diagram()?.nodes?.length ?? 0) > 0;
+
+        const canPan =
+            hasNodes &&
+            !this.readonlyMode() &&
+            !this.tokenGameMode() &&
+            !this.selectedTool();
+
+        return canPan ? 'move' : undefined; // panning cursor
+    });
+
+    private eraserController = new EraserController<IDiagramNode, DiagramEdge>({
+        getSelectedTool: () => this.selectedTool(),
+        getNodes: () => {
+            const nodes = this.diagram()?.nodes ?? [];
+            const undeletable = this.undeletableNodes();
+            if (undeletable.length === 0) {
+                return nodes;
+            }
+            return nodes.filter(n => !undeletable.includes(n.id));
+        },
+        getEdges: () => this.diagram()?.edges ?? [],
+        setDiagram: (nodes, edges) => {
+            const currentDiagram = this.diagram();
+            const undeletableNodeIds = this.undeletableNodes();
+            const mergedNodes = [...nodes];
+            if (currentDiagram && undeletableNodeIds.length > 0) {
+                const undeletableNodes = currentDiagram.nodes.filter(n => undeletableNodeIds.includes(n.id));
+                for (const node of undeletableNodes) {
+                    if (!mergedNodes.some(n => n.id === node.id)) {
+                        mergedNodes.push(node);
+                    }
+                }
+            }
+            this.diagram.set(new Diagram(mergedNodes, [...edges]));
+        },
+        findSvgForEventTarget: (target) => this.findSvgForEventTarget(target),
+        getNodeDimension: (id: string) => this.nodeDimensionService.getDimension(id)()
+    });
+
+    private lightbulbController = new LightbulbController<IDiagramNode, DiagramEdge>({
+        getSelectedTool: () => this.selectedTool(),
+        getNodes: () => this.diagram()?.nodes ?? [],
+        getEdges: () => this.diagram()?.edges ?? [],
+        findSvgForEventTarget: (target) => this.findSvgForEventTarget(target),
+        openOverlay: (p: {x: number; y: number}) => {
+            this.overlayService.openAtMouse(p);
+        },
+        getNodeDimension: (id: string) => this.nodeDimensionService.getDimension(id)()
+    });
+
+
+    private arcController = new ArcDrawingController<IDiagramNode, DiagramEdge>({
+        getSelectedTool: () => this.selectedTool(),
+        isNodeEligible: (n) => n.kind === 'place' || n.kind === 'transition',
+        isValidEdge: (a, b) => this.isValidArc(a, b) && !this.isDuplicate(a, b),
+        createEdge: (s, t) => new DiagramEdge(s, t),
+        getNodes: () => this.diagram()?.nodes ?? [],
+        getEdges: () => this.diagram()?.edges ?? [],
+        addEdge: (edge) => {
+            const d = this.diagram();
+            if (!d) {
+                return;
+            }
+            this.diagram.set(new Diagram(d.nodes, [...d.edges, edge]));
+        },
+        addNodeAt: (x: number, y: number, source: IDiagramNode) => {
+            const newKind = source.kind === 'place' ? 'transition' : 'place';
+            return this.addNodeAt(newKind, x, y);
+        },
+        findSvgForEventTarget: (target) => this.findSvgForEventTarget(target),
+        getNodeDimension: (id: string) => this.nodeDimensionService.getDimension(id)()
+    });
+
+    // eslint-disable-next-line max-params
+    constructor(private fileReaderService: FileReaderService,
+                private http: HttpClient,
+                protected tabNavigation: TabNavigationService,
+                private exportService: ExportService,
+                private nodeDimensionService: NodeDimensionService,
+                private transitionSequenceService: TransitionSequencesValidationService,
+                private readonly overlayService: OverlayService,
+                protected readonly displayService: DisplayService ) {
+        // effect() leert beim Werkzeugwechsel das Signal "ghostNode"
+        effect(() => {
+            const tool: ToolType | undefined = this.selectedTool();
+            if (tool !== 'place' && tool !== 'transition') {
+                this.ghostNode.set(null);
+            }
+        });
+
+        // Canvas auto-resize canvas Logik
+        effect(() => {
+            const diagram = this.diagram();
+            if (!diagram || !this.resizable()) {
+                return;
+            }
+            let maxY = 0;
+            for (const node of diagram.nodes) {
+                const bottomY = node.y() + calculateNodeMargins(node.kind).bottom;
+
+                if (bottomY > maxY) {
+                    maxY = bottomY;
+                }
+            }
+
+            this.resizeController.adjustHeight(maxY);
         });
     }
 
     ngOnDestroy(): void {
-        this._sub.unsubscribe();
+        this.arcController.destroy();
+        this.eraserController.destroy();
     }
 
+    // -------------------- Datei-Drop --------------------
     public processDropEvent(e: DragEvent) {
+        if (this.readonlyMode() || this.tokenGameMode()) {
+            return;
+        }
         e.preventDefault();
 
         const fileLocation = e.dataTransfer?.getData(ExampleFileComponent.META_DATA_CODE);
@@ -55,7 +216,7 @@ export class DisplayComponent implements OnDestroy {
     }
 
     private fetchFile(link: string) {
-        this._http.get(link, {
+        this.http.get(link, {
             responseType: 'text'
         }).pipe(
             catchError(err => {
@@ -65,14 +226,14 @@ export class DisplayComponent implements OnDestroy {
             take(1)
         ).subscribe(content => {
             this.emitFileContent(content);
-        })
+        });
     }
 
     private readFile(files: FileList | undefined | null) {
-        if (files === undefined || files === null || files.length === 0) {
+        if (!files || files.length === 0) {
             return;
         }
-        this._fileReaderService.readFile(files[0]).pipe(take(1)).subscribe(content => {
+        this.fileReaderService.readFile(files[0]).pipe(take(1)).subscribe(content => {
             this.emitFileContent(content);
         });
     }
@@ -81,6 +242,156 @@ export class DisplayComponent implements OnDestroy {
         if (content === undefined) {
             return;
         }
-        this.fileContent.emit(content);
+        this.fileContentChange.emit(content);
     }
+
+    // -------------------- Node-Erzeugung / Eraser / Lightbulb --------------------
+    onCanvasPointerDown(event: PointerEvent) {
+        if (this.readonlyMode() || this.tokenGameMode()) {
+            return;
+        }
+        if (this.selectedTool() === 'eraser') {
+            this.eraserController.onCanvasPointerDown(event);
+        } else {
+            this.panningController.onPointerDown(event);
+        }
+    }
+
+    onCanvasClick(event: MouseEvent) {
+        if (this.readonlyMode() || this.tokenGameMode()) {
+            return;
+        }
+        const tool = this.selectedTool();
+        if (tool !== 'place' && tool !== 'transition') {
+            return;
+        }
+        if (event.target !== event.currentTarget) {
+            return;
+        }
+        const svg = event.currentTarget as SVGSVGElement;
+        const box = svg.getBoundingClientRect();
+        const x = event.clientX - box.left;
+        const y = event.clientY - box.top;
+        this.addNodeAt(tool, x, y);
+    }
+
+    onCanvasPointerUpLightbulb(event: MouseEvent) {
+        this.lightbulbController.onCanvasMouseEventLightbulb(event);
+    }
+
+    onCanvasPointerUp(event: PointerEvent) {
+        this.panningController.onPointerUp(event);
+        this.onCanvasPointerUpLightbulb(event);
+    }
+
+    private addNodeAt(kind: 'place' | 'transition', x: number, y: number): DiagramNode | undefined {
+        const currentDiagram = this.diagram();
+        if (!currentDiagram) {
+            return;
+        }
+        const existingIds = new Set(currentDiagram.nodes.map(node => node.id));
+        const existingEffectiveLabels = this.enforceUniqueLabels()
+            ? new Set(currentDiagram.nodes.map(node => node.effectiveLabel()))
+            : new Set<string>();
+        const newNodeId = this.generateNodeId(existingIds, existingEffectiveLabels, kind);
+        const newNode = new DiagramNode(newNodeId, kind, x, y);
+        const updatedNodes = [...currentDiagram.nodes, newNode];
+        this.diagram.set(new Diagram(updatedNodes, currentDiagram.edges));
+        return newNode;
+    }
+
+    private generateNodeId(existingIds: Set<string>, existingEffectiveLabels: Set<string>, kind: 'place' | 'transition') {
+        const prefix = kind === 'place' ? 'p' : 't';
+        let counter = 1;
+        let candidate = `${prefix}${counter}`;
+        while (existingIds.has(candidate) || existingEffectiveLabels.has(candidate)) {
+            counter += 1;
+            candidate = `${prefix}${counter}`;
+        }
+        return candidate;
+    }
+
+    // -------------------- Node-GhostNode --------------------
+
+    // Während Cursor über Canvas bewegt wird, wird Ghost-Node aktualisiert
+    // damit sie immer direkt unter dem Cursor liegt
+
+    onCanvasPointerMove(event: PointerEvent): void {
+        if (this.readonlyMode() || this.tokenGameMode()) {
+            return;
+        }
+
+        this.panningController.onPointerMove(event);
+        if (this.panningController.isPanning()) {
+            return;
+        }
+
+        const tool: ToolType | undefined = this.selectedTool();
+        if (tool !== 'place' && tool !== 'transition') {
+            return;
+        }
+        const svg = event.currentTarget as SVGSVGElement | null;
+        if (!svg) {
+            return;
+        }
+        const diagram = this.diagram();
+        // --------- Ghost Node ausgeblendet, wenn Cursor auf existierende Node im Canvas trifft -----------
+        const hoveredNode = diagram?.nodes.find(node => hitTest(svg, node, event.clientX, event.clientY, this.nodeDimensionService.getDimension(node.id)()));
+        if (hoveredNode) {
+            // keine Werte in Writable ghostNode
+            this.ghostNode.set(null);
+            return;
+        }
+        const box = svg.getBoundingClientRect();
+        const x = event.clientX - box.left;
+        const y = event.clientY - box.top;
+        this.ghostNode.set({kind: tool, x, y});
+    }
+
+    // -------------------- Delegation an ArcController --------------------
+    onNodePointerDown(event: PointerEvent, node: IDiagramNode) {
+        if (this.readonlyMode() || this.tokenGameMode()) {
+            return;
+        }
+        this.arcController.onNodePointerDown(event, node);
+    }
+
+    private isValidArc(a: IDiagramNode, b: IDiagramNode) {
+        if (a.id === b.id) {
+            return false;
+        }
+        const aIsPlace = a.kind === 'place';
+        const bIsPlace = b.kind === 'place';
+        const aIsTransition = a.kind === 'transition';
+        const bIsTransition = b.kind === 'transition';
+        return (aIsPlace && bIsTransition) || (aIsTransition && bIsPlace);
+    }
+
+    private isDuplicate(a: IDiagramNode, b: IDiagramNode) {
+        const d = this.diagram();
+        if (!d) {
+            return false;
+        }
+        return d.edges.some(ed => ed.source.id === a.id && ed.target.id === b.id);
+    }
+
+
+    private findSvgForEventTarget(target: EventTarget | null) {
+        return (target as Element | null)?.closest('svg') as SVGSVGElement | null;
+    }
+
+    protected downloadDiagram() {
+        this.exportService.openExportDialog(this.diagram());
+    }
+
+    handleTokenGame(event: Event, node: IDiagramNode) {
+        if (!this.tokenGameMode() || this.readonlyMode()) {
+            return;
+        }
+        event.stopPropagation();
+        if (node.kind === 'transition' && node.activated()) {
+            this.transitionSequenceService.fireTransition(this.diagram() as Diagram<DiagramNode, DiagramEdge<DiagramNode>>, <DiagramNode> node, true, this.tokenGameContext());
+        }
+    }
+
 }

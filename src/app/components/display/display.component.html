@@ -1,8 +1,106 @@
-<svg #drawingArea class="canvas"
-     (drop)="processDropEvent($event)"
-     (dragover)="prevent($event)">
+<svg:svg appSvgDefsIdContext
+         #appSvgDefsIdContext="svgDefsIdContext"
+         class="standard-canvas"
+         [class.smooth-height]="resizeController.enableSmoothHeight()"
+         xmlns:svg="http://www.w3.org/2000/svg"
+         (pointerdown)="onCanvasPointerDown($event)"
+         (pointerup)="onCanvasPointerUp($event)"
+         (click)="onCanvasClick($event)"
+         (drop)="processDropEvent($event)"
+         (dragover)="prevent($event)"
+         (pointermove)="onCanvasPointerMove($event)"
+         [style.height.px]="resizeController.canvasHeight()"
+         [style.cursor]="canvasCursor()">
+    <svg:defs>
+        <filter [id]="`outlineEffect-${appSvgDefsIdContext.idSuffix}`"
+                color-interpolation-filters="sRGB">
+            <feMorphology in="SourceAlpha"
+                          result="MORPH"
+                          operator="dilate"
+                          radius="2"></feMorphology>
+            <feFlood flood-color="#ffffff"
+                     result="WHITE"></feFlood>
+            <feComposite in="WHITE"
+                         in2="MORPH"
+                         operator="in"
+                         result="OUTLINE"></feComposite>
+            <feMerge>
+                <feMergeNode in="OUTLINE"></feMergeNode>
+                <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+        </filter>
+    </svg:defs>
+
+    @for (edge of diagram()?.edges; track $index) {
+        <g SvgEdge
+           [edge]="edge"
+           [readonlyMode]="readonlyMode() || selectedTool() === 'eraser' || selectedTool() ==='lightbulb'"
+           [allowEdgeWeightModification]="allowEdgeWeightModification() && (!selectedTool() || selectedTool() === 'arc')"
+           [allowEdgeLabelModification]="allowEdgeLabelModification()"
+           [showHints]="this.showHints() && !this.readonlyMode()" />
+    }
 
     @for (node of diagram()?.nodes; track node.id) {
-        <g SvgNode [diagramNode]="node"/>
+        <g SvgNode
+           [diagramNode]="node"
+           [diagramNodes]="diagram()?.nodes ?? []"
+           [enforceUniqueLabels]="enforceUniqueLabels()"
+           [allowTokenCountModification]="allowTokenCountModification()"
+           [readonlyMode]="readonlyMode() || selectedTool() === 'eraser'|| selectedTool() ==='lightbulb'"
+           [tokenGameMode]="tokenGameMode()"
+           [dragAndDropEnabled]="dragAndDropEnabled() && !readonlyMode() && selectedTool() !== 'arc' && selectedTool() !== 'eraser' && selectedTool() !=='lightbulb'"
+           [showHints]="this.showHints() && !this.readonlyMode()"
+           (pointerdown)="onNodePointerDown($event, node)"
+           (pointerup)="handleTokenGame($event, node)" />
     }
-</svg>
+    @if (ghostNode(); as ghost) {
+        @if (ghost.kind === 'place') {
+            <svg:circle class="ghost-node"
+                        [attr.cx]="ghost.x"
+                        [attr.cy]="ghost.y"
+                        [attr.r]="PLACE_RADIUS" />
+        } @else {
+            <svg:rect class="ghost-node"
+                      [attr.x]="ghost.x - TRANSITION_WIDTH / 2"
+                      [attr.y]="ghost.y - TRANSITION_HEIGHT /2"
+                      [attr.width]="TRANSITION_WIDTH"
+                      [attr.height]="TRANSITION_HEIGHT"
+            />
+        }
+    }
+
+</svg:svg>
+
+@if (readonlyMode()) {
+    <div class="readonly-overlay"></div>
+}
+@if (readonlyMode() || tokenGameMode()) {
+    <button
+        mat-icon-button
+        (click)="tabNavigation.goToDrawingTab()"
+        matTooltip="Jump to Petri Net Editor"
+        style="position: absolute; right: 8px; top: 8px;">
+        <mat-icon>edit</mat-icon>
+    </button>
+}
+@if (!readonlyMode() && !tokenGameMode()) {
+    <app-download-button (buttonClick)="downloadDiagram()"></app-download-button>
+}
+
+@if (displayService.showHints() && tokenGameContext(); as context) {
+    <app-tokengame-toggle [tokenGameContext]="context"></app-tokengame-toggle>
+}
+
+@if (emptyDiagramMessage() && (!diagram() || diagram()?.nodes?.length === 0)) {
+    <div class="empty-diagram-message">{{ emptyDiagramMessage() }}</div>
+}
+
+@if (diagram()?.hint || hint()?.message) {
+    <button
+        mat-mini-fab
+        color="warn"
+        [matTooltip]="diagram()?.hint?.message || hint()?.message"
+        style="position: absolute; right: 8px; bottom: 8px;">
+        <mat-icon>priority_high</mat-icon>
+    </button>
+}

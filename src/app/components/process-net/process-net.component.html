@@ -1,0 +1,51 @@
+<app-display [diagram]="displayService.showHints() && displayService.processNetTokenGameEnabled() ? displayService.processNetPetriNetPreview() : displayService.diagram()"
+             [hint]="displayService.showHints() ? infinityHint() : undefined"
+             [tokenGameMode]="displayService.showHints() && displayService.processNetTokenGameEnabled()"
+             [readonlyMode]="!displayService.showHints() || !displayService.processNetTokenGameEnabled()"
+             [tokenGameContext]="'process-net'"></app-display>
+
+<app-toolbox
+    [(activeTool)]="selectedTool"
+    (clearCanvas)="resetCanvas()"
+    [buttonInput]="['arc']"
+    [showLayoutButton]="true"
+    [showLightbulbButton]="true"
+    (layout)="processNet()?.applySimpleLayout()">
+    <mat-form-field appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="mat-input-height-40px"
+                    [style.margin-right]="displayService.showHints() ? '10px' : null">
+        <mat-label>Mandatory Transitions</mat-label>
+        <input matInput
+               [formControl]="mandatoryTransitionsControl"
+               [matAutocomplete]="auto"
+               (input)="onInputChange(mandatoryTransitionsControl.value || '')"
+               placeholder="e.g. t1 t2 t3">
+        <mat-icon matSuffix
+                  [style.visibility]="mandatoryTransitionsControl.hasError('message') ? 'visible' : 'hidden'"
+                  [matTooltip]="mandatoryTransitionsControl.getError('message')"
+                  color="warn">
+            error
+        </mat-icon>
+        <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onInputChange($event.option.value)">
+            @for (sequence of filteredSequences(); track sequence) {
+                <mat-option [value]="sequence">{{sequence}}</mat-option>
+            }
+        </mat-autocomplete>
+    </mat-form-field>
+
+    @if (displayService.showHints()) {
+        <app-toolbar-divider></app-toolbar-divider>
+        <app-toolbox-text-button label="Generate Process Net"
+                                 (click)="generateProcessNet()">
+        </app-toolbox-text-button>
+    }
+</app-toolbox>
+
+<app-display [(diagram)]="processNet"
+             [dragAndDropEnabled]="true"
+             [selectedTool]="selectedTool()"
+             [resizable]="true"
+             [undeletableNodes]="undeletableNodeIds()"
+             [showHints]="displayService.showHints()">
+</app-display>

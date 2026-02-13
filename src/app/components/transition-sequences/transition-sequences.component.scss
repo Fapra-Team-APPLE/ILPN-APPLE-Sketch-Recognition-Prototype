@@ -1,0 +1,66 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.row-field {
+    flex: 1;
+}
+
+.actions {
+    margin-top: 4px;
+}
+
+.buttons {
+    margin: 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.drop-list .row {
+    margin-bottom: 12px;
+}
+
+.result-display {
+    border: 1px solid gray;
+    border-radius: 4px;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 56px;
+    box-sizing: border-box;
+
+    .label {
+        font-size: 11px;
+        color: gray;
+        margin-bottom: 2px;
+    }
+
+    .sequence-text {
+        font-size: 16px;
+        word-break: break-word;
+    }
+}

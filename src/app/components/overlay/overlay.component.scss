@@ -1,0 +1,23 @@
+:host {
+    display: block;
+}
+
+.overlay-card {
+    min-width: 220px;
+    padding: 12px;
+    border-radius: 8px;
+    border-color: rgba(255, 238, 130, 0.8);
+    border-style: solid;
+
+    background: white;
+    box-shadow: 0 3px 10px rgba(255, 238, 130, 0.8);
+    font-size: 14px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+

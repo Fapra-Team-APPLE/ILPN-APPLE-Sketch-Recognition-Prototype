@@ -1,0 +1,105 @@
+<app-display [diagram]="displayService.showHints() && displayService.firingSequencesTokenGameEnabled() ? displayService.firingSequencesPetriNetPreview() : (displayService.diagram())"
+             [hint]="displayService.showHints() ? infinityHint() : undefined"
+             [tokenGameMode]="displayService.showHints() && displayService.firingSequencesTokenGameEnabled()"
+             tokenGameContext="sequences"
+             [readonlyMode]="!displayService.showHints() || !displayService.firingSequencesTokenGameEnabled()"></app-display>
+<app-toolbox [showEraserButton]="false"
+             (clearCanvas)="resetSequences()"
+             [deleteDialogComponent]="ClearSequencesDialogComponent">
+    @if (showHints()) {
+        <app-toolbox-text-button label="Generate Maximal Sequences"
+                                 (click)="generateSequences()">
+        </app-toolbox-text-button>
+    }
+</app-toolbox>
+
+<div class="container">
+    <div style="margin-top: 24px">
+    </div>
+
+    <div class="rows">
+        <div class="row"
+             style="flex-wrap: wrap">
+            <mat-form-field appearance="outline"
+                            class="row-field {{getValidationBorderCssClass(currentValidationResult)}}"
+                            subscriptSizing="dynamic">
+                <mat-label>Add a new Firing Sequence</mat-label>
+                <input #firingSequenceInput
+                       matInput
+                       [formControl]="currentSequence"
+                       (input)="onInputChange(currentSequence, currentSequence.value || '')"
+                       (keydown.enter)="addCurrentSequence()"
+                       placeholder="Transitions separated by spaces, e.g. A B C">
+            </mat-form-field>
+            <button mat-icon-button
+                    color="primary"
+                    (click)="addCurrentSequence()"
+                    [disabled]="!currentSequence.value || (!isCurrentSequenceValid && displayService.showHints())"
+                    matTooltip="Add Firing Sequence">
+                <mat-icon>add</mat-icon>
+            </button>
+
+            @if (currentValidationResult.length > 0 && displayService.showHints()) {
+                <div class="result-display {{getValidationBorderCssClass(currentValidationResult)}}"
+                     style="width: 100%; margin-top: 4px; border-style: dashed;">
+                    <span class="label">Preview</span>
+                    <div class="sequence-text">
+                        @for (item of currentValidationResult; track item) {
+                            <span [class]="getValidationTextColorCssClass(item.valid)">{{ item.transition }} </span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (sequences.length > 0) {
+            <h3>Added Firing Sequences</h3>
+        }
+
+        <cdk-virtual-scroll-viewport class="drop-list"
+                                     itemSize="56"
+                                     minBufferPx="200"
+                                     maxBufferPx="400"
+                                     style="height: 450px">
+            <div *cdkVirtualFor="let control of sequencesList$ | async; let i = index"
+                 class="row">
+                @if (validationResults[i]) {
+                    <div class="row-field result-display {{getValidationBorderCssClass(validationResults[i])}}">
+                        <span class="label">Firing Sequence {{ sequences.controls.length - i }}</span>
+                        <div class="sequence-text">
+                            @for (item of validationResults[i]; track item) {
+                                <span [class]="getValidationTextColorCssClass(item.valid)">{{ item.transition }} </span>
+                            }
+                        </div>
+                    </div>
+                } @else {
+                    <mat-form-field appearance="outline"
+                                    class="row-field"
+                                    subscriptSizing="dynamic">
+                        <mat-label>Firing Sequence {{ sequences.controls.length - i }}</mat-label>
+                        <input matInput
+                               [formControl]="control"
+                               [readonly]="true"
+                               placeholder="Transitions separated by spaces, e.g. A B C">
+                    </mat-form-field>
+                }
+
+                <button mat-icon-button
+                        color="primary"
+                        (click)="editRow(i)"
+                        matTooltip="Edit (moves to input)">
+                    <mat-icon>edit</mat-icon>
+                </button>
+
+                <button mat-icon-button
+                        color="warn"
+                        (click)="removeRow(i)"
+                        matTooltip="Delete">
+                    <mat-icon>delete</mat-icon>
+                </button>
+            </div>
+        </cdk-virtual-scroll-viewport>
+    </div>
+
+
+</div>

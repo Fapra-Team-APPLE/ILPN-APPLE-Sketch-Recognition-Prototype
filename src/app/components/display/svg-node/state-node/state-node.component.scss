@@ -1,0 +1,8 @@
+@use "../../hover-button";
+@use '../shared/inline-edit';
+
+:not(.hints-disabled *) {
+    .node-highlighted {
+        filter: url(#glow);
+    }
+}

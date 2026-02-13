@@ -1,0 +1,8 @@
+<button mat-button
+        class="shape-btn"
+        (click)="buttonClick.emit()">
+    @if(icon()) {
+    <mat-icon>{{ icon() }}</mat-icon>
+    }
+    {{ label() }}
+</button>

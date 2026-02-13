@@ -1,0 +1,105 @@
+<svg:g xmlns:svg="http://www.w3.org/2000/svg"
+       (mouseenter)="hovered.set(true)"
+       (mouseleave)="hovered.set(false)">
+
+    <svg:rect
+        [attr.x]="rect().x"
+        [attr.y]="rect().y"
+        [attr.width]="rect().w"
+        [attr.height]="rect().h"
+        rx="10"
+        ry="10"
+        fill="white"
+        stroke="black"
+        stroke-width="1.5"
+        [class.node-valid]="validationStatus() === 'valid'"
+        [class.node-invalid]="validationStatus() === 'invalid'"
+        [class.node-partly-valid]="validationStatus() === 'partly-valid'"
+        [class.node-highlighted]="diagramNode()?.activated() && displayService.reachabilityTokenGameEnabled()"
+    />
+
+    @if (!isEditing()) {
+        <svg:text
+            [attr.data-editable]="!readonlyMode()"
+            (dblclick)="onLabelDblClick($event)"
+            [attr.x]="position().x"
+            [attr.y]="position().y"
+            dominant-baseline="central"
+            text-anchor="middle"
+            font-size="14"
+            letter-spacing="-2px"
+            fill="black"
+            [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`"
+            style="user-select: none;">
+        <svg:tspan>(</svg:tspan>
+        @for (part of labelParts(); track $index; let last = $last) {
+            <svg:tspan [class.text-valid]="part.validity?.status === 'valid'"
+                       [class.text-invalid]="part.validity?.status === 'invalid'"
+                       [class.text-partly-valid]="part.validity?.status === 'partly-valid'">{{ part.text }}</svg:tspan> <!-- hier keine Leerzeichen zwischen den Tspans, sonst gibts unerwünschte Abstände im Text -->
+            @if (!last) {
+                <svg:tspan>, </svg:tspan>
+            }
+        }
+        <svg:tspan>)</svg:tspan>
+    </svg:text>
+    } @else {
+        <svg:foreignObject
+            [attr.x]="position().x - stateNodeEditBoxWidth / 2"
+            [attr.y]="position().y - stateNodeEditBoxHeight / 2"
+            [attr.width]="stateNodeEditBoxWidth"
+            [attr.height]="stateNodeEditBoxHeight"
+            style="pointer-events: all;"
+            (pointerdown)="$event.stopPropagation()"
+        >
+            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+                <input #labelInput
+                       type="text"
+                       xmlns="http://www.w3.org/1999/xhtml"
+                       [value]="editValue()"
+                       (pointerdown)="$event.stopPropagation()"
+                       (input)="onInputChange($event)"
+                       placeholder="e.g. 0, 1, w, 2"
+                       (keydown.enter)="onKeydownEnter($event)"
+                       (keydown.escape)="onKeydownEscape($event)"
+                       (blur)="onInputBlur($event)"
+                       [class.invalid]="editInvalid()"
+                       matTooltip="{{invalidLabelTooltip()}}"
+                       [matTooltipDisabled]="!editInvalid()"
+                       matTooltipPosition="above"
+                       style="width:100%; box-sizing:border-box; padding:2px 4px; font-size:16px;" />
+            </div>
+        </svg:foreignObject>
+    }
+    <svg:text
+        [attr.x]="position().x"
+        [attr.y]="position().y + STATE_NODE_HEIGHT / 2 + 15"
+        text-anchor="middle"
+        font-size="12"
+        fill="gray"
+        [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`"
+        style="user-select: none;"
+    >{{ diagramNode()?.id }}</svg:text>
+
+    @if (showApplyMarkingButton() && hovered() && !isEditing() && !readonlyMode() && displayService.reachabilityTokenGameEnabled()) {
+        <svg:g (pointerdown)="$event.stopPropagation()"
+               (click)="$event.stopPropagation()">
+            <svg:title>show marking in petri net</svg:title>
+            <svg:rect
+                [attr.x]="position().x - 9"
+                [attr.y]="rect().y - 18"
+                width="18"
+                height="16"
+                rx="3"
+                class="hover-btn"
+                (click)="showNodeMarkingInPreview($event)"></svg:rect>
+            <svg:path
+                d="M -4 1 L 0 -3 L 4 1 M 0 -3 L 0 5"
+                [attr.transform]="'translate(' + position().x + ',' + (rect().y - 11) + ')'"
+                stroke="white"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                fill="none"
+                pointer-events="none"></svg:path>
+        </svg:g>
+    }
+</svg:g>

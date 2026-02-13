@@ -1,0 +1,35 @@
+.border {
+    width: 380px;
+    border: 2px solid grey;
+    float: left;
+}
+
+.border:hover {
+    border-color: black;
+}
+
+.square {
+    min-width: 50px;
+    min-height: 50px;
+    width: 50px;
+    height: 50px;
+    margin: 10px;
+    border-width: 3px;
+    border-style: solid;
+    border-color: black;
+
+    font-size: 30px;
+    color: red;
+}
+
+.flex-row-align-center-center {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.item-no-grow {
+    flex-grow: 0;
+    flex-basis: auto;
+}

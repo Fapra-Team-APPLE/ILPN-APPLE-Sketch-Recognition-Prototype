@@ -1,0 +1,8 @@
+<div [draggable]="draggable()" class="border flex-row-align-start-top" [style.user-select]="textSelectionDisabled() ? 'none' : 'auto'">
+    <ng-content select="[file-card-icon]"></ng-content>
+    <div class="description flex-column-align-top-center item-grow">
+        <span>{{ title() }}</span>
+        <hr class="width-100">
+        <span class="description-min-height">{{ description() }}</span>
+    </div>
+</div>

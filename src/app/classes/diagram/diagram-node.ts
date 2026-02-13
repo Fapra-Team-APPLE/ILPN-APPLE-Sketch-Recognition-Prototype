@@ -1,57 +1,58 @@
-export class DiagramNode {
-    private readonly _id: string;
-    private _x: number;
-    private _y: number;
-    private _svgElement: SVGElement | undefined;
+import {signal} from '@angular/core';
+import {requireCloneOverride} from '../class-helper';
+import {AbstractDiagramNode} from './abstract-diagram-node';
+import {DiagramNodeKind} from './diagram-types';
 
-    constructor(id: string) {
-        this._id = id;
-        this._x = 0;
-        this._y = 0;
-    }
+export class DiagramNode extends AbstractDiagramNode {
 
-    get id(): string {
-        return this._id;
-    }
+    readonly kind: DiagramNodeKind;
+    private readonly _tokenCount = signal<number>(0);
 
-    get x(): number {
-        return this._x;
-    }
-
-    set x(value: number) {
-        this._x = value;
-    }
-
-    get y(): number {
-        return this._y;
-    }
-
-    set y(value: number) {
-        this._y = value;
-    }
-
-    public registerSvg(svg: SVGElement) {
-        this._svgElement = svg;
-        this._svgElement.onmousedown = (event) => {
-            this.processMouseDown(event);
-        };
-        this._svgElement.onmouseup = (event) => {
-            this.processMouseUp(event);
-        };
-    }
-
-    private processMouseDown(event: MouseEvent) {
-        if (this._svgElement === undefined) {
-            return;
+    constructor(id: string, kind: DiagramNodeKind, x?: number, y?: number) {
+        super(id);
+        this.kind = kind;
+        if (x !== undefined) {
+            this.setX(x);
         }
-        this._svgElement.setAttribute('fill', 'red');
+        if (y !== undefined) {
+            this.setY(y);
+        }
     }
 
-    private processMouseUp(event: MouseEvent) {
-        if (this._svgElement === undefined) {
-            return;
-        }
-        this._svgElement.setAttribute('fill', 'black');
+    get tokenCount(): number {
+        return this._tokenCount();
+    }
+
+    set tokenCount(value: number) {
+        this._tokenCount.set(value);
+    }
+
+    /**
+     * erhöht die gespeicherte Markenanzahl der Stelle
+     * Analog zu DiagramEdge.incrementWeight(), nur auf _tokenCount-Signal von DiagramNode-> Änderungen landen sofort im zentralen Modell
+     * & allen abhängigen Berechnungen (z.B. Reachability) können Update sehen
+     */
+    incrementTokenCount(): void {
+        this._tokenCount.update(t => t + 1);
+    }
+
+    /**
+     * verringert Markenanzahl (wenn >0), entspricht Verhalten von DiagramEdge.decrementWeight()
+     * updated das _tokenCount-Signal von DiagramNode in Diagram.nodes
+     */
+    decrementTokenCount(min: number = 0): void {
+        this._tokenCount.update(t => t > min ? t - 1 : t);
+    }
+
+
+    clone(): this {
+        requireCloneOverride(this, DiagramNode);
+        const clone = new DiagramNode(this.id, this.kind, this.x(), this.y());
+        clone.setLabel(this.label());
+        clone.tokenCount = this.tokenCount;
+        clone.setValidity(this.validity());
+        clone.setActivated(this.activated());
+        return clone as this;
     }
 
 }
