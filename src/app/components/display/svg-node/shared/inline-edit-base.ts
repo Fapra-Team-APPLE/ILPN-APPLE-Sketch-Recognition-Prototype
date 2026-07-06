@@ -1,14 +1,15 @@
-import {computed, Directive, ElementRef, input, output, signal, viewChild} from '@angular/core';
+import {ChangeDetectorRef, computed, Directive, effect, ElementRef, inject, input, output, signal, untracked} from '@angular/core';
 import type {AbstractDiagramNode} from '../../../../classes/diagram/abstract-diagram-node';
 import {DiagramEdge} from '../../../../classes/diagram/diagram-edge';
 import {IDiagramNode} from '../../../../classes/diagram/diagram-types';
+import {OverlayEditService} from '../../../../services/overlay-edit.service';
 import {EDIT_BOX_HEIGHT, EDIT_BOX_WIDTH} from '../svg-node';
 
 /**
  * Gemeinsame Basisklasse für Inline-Label-Editing in SVG-Knoten.
  * Erwartet, dass die abgeleitete Komponente:
- * - `getDiagramNode()` überschreibt
- * - im Template ein <input #labelInput> im Edit-Zustand bereitstellt
+ * - `getDiagramNodeOrEdge()` überschreibt
+ * - `getEditBoxSvgCenter()` überschreibt, um die SVG-Koordinaten des Edit-Bereichs zu liefern
  */
 type CommitBlockReason = 'label_conflict' | null;
 
@@ -26,8 +27,9 @@ export abstract class InlineEditableLabelComponentBase<NodeOrEdgeType extends Ab
     isEditing = signal(false);
     editValue = signal('');
 
-    // Referenz auf das Eingabefeld im foreignObject
-    editInputRef = viewChild<ElementRef<HTMLInputElement>>('labelInput');
+    protected readonly cd = inject(ChangeDetectorRef);
+    protected readonly overlayEditService = inject(OverlayEditService);
+    private readonly hostElementRef = inject(ElementRef);
 
     readonly label = computed(() => {
         this.isEditing(); // Abhängig von isEditing, damit der Wechsel re-render triggert
@@ -53,8 +55,51 @@ export abstract class InlineEditableLabelComponentBase<NodeOrEdgeType extends Ab
     });
 
 
+    constructor() {
+        // Aktualisiere die absolute Position des Eingabefeldes reaktiv, wenn sich die Knoten-/Kantenkoordinaten verändern
+        effect(() => {
+            if (!this.isEditing()) {
+                return;
+            }
+
+            const center = this.getEditBoxSvgCenter();
+            if (!center) {
+                return;
+            }
+
+            const editBoxDimensions = this.getEditBoxDimensions();
+            const overlayPosition = this.calculateOverlayPosition(center, editBoxDimensions);
+            if (!overlayPosition) {
+                return;
+            }
+
+            untracked(() => {
+                this.overlayEditService.updatePosition(overlayPosition.left, overlayPosition.top);
+            });
+        });
+    }
+
     // Abgeleitete Klassen müssen diese Methode überschreiben, um die aktuelle DiagramNode oder DiagramEdge oder bereitzustellen
     protected abstract getDiagramNodeOrEdge(): NodeOrEdgeType | undefined;
+
+    /**
+     * Liefert die SVG-Koordinaten (x, y) der Mitte des Edit-Bereichs
+     */
+    protected abstract getEditBoxSvgCenter(): { x: number; y: number } | undefined;
+
+    /**
+     * Liefert die Breite und Höhe des Edit-Bereichs. Kann überschrieben werden (z.B. für StateNode)
+     */
+    protected getEditBoxDimensions(): { width: number; height: number } {
+        return {width: EDIT_BOX_WIDTH, height: EDIT_BOX_HEIGHT};
+    }
+
+    /**
+     * Optionaler Placeholder-Text für das Edit-Feld
+     */
+    protected getEditPlaceholder(): string | undefined {
+        return undefined;
+    }
 
     onKeydownEnter(event: Event) {
         event.preventDefault();
@@ -80,13 +125,10 @@ export abstract class InlineEditableLabelComponentBase<NodeOrEdgeType extends Ab
         this.isEditing.set(true);
         this.requestFront?.emit?.();
 
-        // Fokus setzen, sobald das Input gerendert ist
-        setTimeout(() => {
-            const inputEl = this.editInputRef()?.nativeElement;
-            if (inputEl) {
-                inputEl.focus();
-            }
-        });
+        // Change detection synchron starten, damit SVG-Elemente korrekt positioniert sind
+        this.cd.detectChanges();
+
+        this.openOverlayInput();
     }
 
     protected getDuplicateNodeErrorMessage() {
@@ -139,31 +181,70 @@ export abstract class InlineEditableLabelComponentBase<NodeOrEdgeType extends Ab
         return raw;
     }
 
-    onInputChange(event: Event) {
-        const target = event.target as HTMLInputElement;
-        const raw = target.value ?? '';
-        const sanitized = this.sanitizeEditValue(raw);
-
-        if (sanitized !== raw) {
-            target.value = sanitized; // Auto-Korrektur
+    private openOverlayInput(): void {
+        const center = this.getEditBoxSvgCenter();
+        if (!center) {
+            return;
         }
+
+        const editBoxDimensions = this.getEditBoxDimensions();
+        const overlayPosition = this.calculateOverlayPosition(center, editBoxDimensions);
+        if (!overlayPosition) {
+            return;
+        }
+
+        this.overlayEditService.open({
+            left: overlayPosition.left,
+            top: overlayPosition.top,
+            width: editBoxDimensions.width,
+            height: editBoxDimensions.height,
+            value: this.editValue(),
+            placeholder: this.getEditPlaceholder(),
+            onInput: (value: string) => { return this.handleOverlayInput(value); },
+            onCommit: () => this.commitEdit(),
+            onCancel: () => this.cancelEdit(),
+            isInvalid: () => this.editInvalid(),
+            tooltipText: () => this.invalidLabelTooltip()
+        });
+    }
+
+
+    /**
+     * Berechnet die absolute CSS-Position des Eingabefeldes relativ zum displayHost
+     */
+    private calculateOverlayPosition(center: { x: number; y: number }, dims: { width: number; height: number }): { left: number; top: number } | undefined {
+        const hostEl = this.hostElementRef.nativeElement as Element;
+        const svgEl = hostEl.closest('svg');
+        if (!svgEl) {
+            return undefined;
+        }
+
+        const displayHost = svgEl.parentElement;
+        if (!displayHost) {
+            return undefined;
+        }
+
+        const svgRect = svgEl.getBoundingClientRect();
+        const hostRect = displayHost.getBoundingClientRect();
+
+        const svgStyle = window.getComputedStyle(svgEl);
+        const borderLeft = parseFloat(svgStyle.borderLeftWidth) || 0;
+        const borderTop = parseFloat(svgStyle.borderTopWidth) || 0;
+
+        const left = (svgRect.left - hostRect.left) + borderLeft + center.x - dims.width / 2;
+        const top = (svgRect.top - hostRect.top) + borderTop + center.y - dims.height / 2;
+
+        return {left, top};
+    }
+
+    /**
+     * Verarbeitet Input-Änderungen vom Overlay-Input. Gibt den sanitized Wert zurück
+     */
+    private handleOverlayInput(value: string): string {
+        const sanitized = this.sanitizeEditValue(value);
         this.editValue.set(sanitized);
+        return sanitized;
     }
-
-    onInputBlur(_event: FocusEvent) {
-        if (!this.isEditing()) {
-            return;
-        }
-        const newLabel = this.editValue().trim();
-        // Leer oder unverändert = ok -> commitEdit:-> dann setLabel(undefined) bzw. unverändert
-        if (!this.canCommitLabel(newLabel)) {
-            this.cancelEdit(); // wie ESC
-            return;
-        }
-
-        this.commitEdit();
-    }
-
 
     commitEdit() {
         const nodeOrEdge = this.getDiagramNodeOrEdge();
@@ -178,10 +259,12 @@ export abstract class InlineEditableLabelComponentBase<NodeOrEdgeType extends Ab
         }
         nodeOrEdge.setLabel(newLabel.length ? newLabel : undefined);
         this.isEditing.set(false);
+        this.overlayEditService.close();
     }
 
     cancelEdit() {
         this.isEditing.set(false);
+        this.overlayEditService.close();
     }
 
 

@@ -17,6 +17,7 @@ export class ToolButtonComponent {
     private _buttonType!: ToolType;
     buttonConfig! : ButtonConfig | undefined;
     @Input() activeType! : ToolType | undefined;
+    @Input() disabled: boolean = false;
     @Output() selectTool: EventEmitter<string> = new EventEmitter<string>();
 
     @Input()

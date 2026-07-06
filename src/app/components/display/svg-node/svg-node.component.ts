@@ -1,5 +1,5 @@
 import {CommonModule} from '@angular/common';
-import {Component, computed, effect, ElementRef, inject, input, OnDestroy, signal} from '@angular/core';
+import {Component, computed, effect, ElementRef, inject, input, OnDestroy, signal, viewChild} from '@angular/core';
 import {DiagramNode} from '../../../classes/diagram/diagram-node';
 import {IDiagramNode} from '../../../classes/diagram/diagram-types';
 import {ReachabilityNode} from '../../../classes/reachability/reachability-node';
@@ -24,13 +24,18 @@ export class SvgNodeComponent implements OnDestroy {
     readonly diagramNode = input<IDiagramNode>();
     readonly diagramNodes = input<IDiagramNode[]>([]);
     readonly dragAndDropEnabled = input<boolean>(false);
+    readonly disableBringToFrontOnClick = input<boolean>(false);
     readonly readonlyMode = input<boolean>(false);
     readonly placeIds = input<string[]>([]);
     readonly showHints = input<boolean>(true);
     readonly tokenGameMode = input<boolean>(false);
     readonly enforceUniqueLabels = input<boolean>(true);
-
     readonly allowTokenCountModification = input<boolean>(false);
+
+    readonly placeComp = viewChild(PlaceNodeComponent);
+    readonly transitionComp = viewChild(TransitionNodeComponent);
+    readonly stateComp = viewChild(StateNodeComponent);
+
     private readonly elementRef: ElementRef<SVGGElement> = inject(ElementRef);
     private readonly nodeDimensionService = inject(NodeDimensionService);
 
@@ -45,6 +50,7 @@ export class SvgNodeComponent implements OnDestroy {
 
     private drag = {
         active: false,
+        activePointerId: null as number | null,
         startMouseX: 0,
         startMouseY: 0,
         startNodeX: 0,
@@ -53,7 +59,7 @@ export class SvgNodeComponent implements OnDestroy {
         upListener: undefined as ((e: PointerEvent) => void) | undefined,
         listenerTarget: window,
         canvasWidth: 1000,
-        canvasHeight: 420
+        canvasHeight: 570
     };
 
     constructor() {
@@ -70,6 +76,12 @@ export class SvgNodeComponent implements OnDestroy {
         this.removeDragEventListeners();
     }
 
+    public startLabelEditing() {
+        this.placeComp()?.startEditing();
+        this.transitionComp()?.startEditing();
+        this.stateComp()?.startEditing();
+    }
+
     public mouseDown() {
         this.fillColor.set('#e0f3ff');
     }
@@ -79,7 +91,12 @@ export class SvgNodeComponent implements OnDestroy {
     }
 
     public onPointerDown(event: PointerEvent) {
-        this.bringToFront();
+        if (!event.isPrimary) {
+            return;
+        }
+        if (!this.disableBringToFrontOnClick) {
+            this.bringToFront();
+        }
         if (!this.dragAndDropEnabled() || this.drag.active) {
             return;
         }
@@ -92,6 +109,7 @@ export class SvgNodeComponent implements OnDestroy {
         this.drag.canvasHeight = svgEl?.clientHeight ?? this.drag.canvasHeight;
 
         this.drag.active = true;
+        this.drag.activePointerId = event.pointerId;
         this.drag.startMouseX = event.clientX;
         this.drag.startMouseY = event.clientY;
         this.drag.startNodeX = node.x();
@@ -101,14 +119,17 @@ export class SvgNodeComponent implements OnDestroy {
 
         this.drag.moveListener = (e: PointerEvent) => this.onPointerMove(e);
         this.drag.upListener = (e: PointerEvent) => this.onPointerUp(e);
-        this.drag.listenerTarget.addEventListener('pointermove', this.drag.moveListener as EventListener, {passive: false} as AddEventListenerOptions);
-        this.drag.listenerTarget.addEventListener('pointerup', this.drag.upListener as EventListener, {passive: false} as AddEventListenerOptions);
-        this.drag.listenerTarget.addEventListener('pointercancel', this.drag.upListener as EventListener, {passive: false} as AddEventListenerOptions);
+        this.drag.listenerTarget.addEventListener('pointermove', this.drag.moveListener as EventListener, {passive: false});
+        this.drag.listenerTarget.addEventListener('pointerup', this.drag.upListener as EventListener, {passive: false});
+        this.drag.listenerTarget.addEventListener('pointercancel', this.drag.upListener as EventListener, {passive: false});
         event.preventDefault();
         event.stopPropagation();
     }
 
     private onPointerMove(event: PointerEvent) {
+        if (event.pointerId !== this.drag.activePointerId) {
+            return;
+        }
         if (!this.drag.active) {
             return;
         }
@@ -131,6 +152,9 @@ export class SvgNodeComponent implements OnDestroy {
     }
 
     private onPointerUp(event: PointerEvent) {
+        if (event.pointerId !== this.drag.activePointerId) {
+            return;
+        }
         this.finishDrag();
         event.preventDefault();
         event.stopPropagation();
@@ -142,6 +166,7 @@ export class SvgNodeComponent implements OnDestroy {
         }
         this.mouseUp();
         this.drag.active = false;
+        this.drag.activePointerId = null;
         this.removeDragEventListeners();
     }
 

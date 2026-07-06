@@ -36,6 +36,11 @@ export class DisplayService {
     private _reachabilityGraph$: BehaviorSubject<ReachabilityGraph>;
     private _processNet$ = new BehaviorSubject<ProcessNet>(new Diagram([]));
 
+    private readonly undoStack = signal<PetriNet[]>([]);
+    private readonly redoStack = signal<PetriNet[]>([]);
+    public readonly canUndo = computed(() => this.undoStack().length > 0);
+    public readonly canRedo = computed(() => this.redoStack().length > 0);
+
     constructor() {
         this._reachabilityGraph$ = new BehaviorSubject<ReachabilityGraph>(new ReachabilityGraph());
 
@@ -66,6 +71,66 @@ export class DisplayService {
         this.reachabilityPetriNetPreview.set(diagram.clone());
         this.processNetPetriNetPreview.set(diagram.clone());
     }
+
+    public saveHistoryStep(): void {
+        const current = this.diagram();
+        if (current) {
+            this.undoStack.update(stack => {
+                const next = [...stack, current.clone()];
+                if (next.length > 50) {
+                    next.shift();
+                }
+                return next;
+            });
+            this.redoStack.set([]);
+        }
+    }
+
+    public clearHistory(): void {
+        this.undoStack.set([]);
+        this.redoStack.set([]);
+    }
+
+    public undo(): void {
+        const undo = this.undoStack();
+        if (undo.length === 0) {
+            return;
+        }
+        const current = this.diagram();
+        if (current) {
+            this.redoStack.update(redo => [...redo, current.clone()]);
+        }
+        const nextUndo = [...undo];
+        const previous = nextUndo.pop();
+        this.undoStack.set(nextUndo);
+        if (previous) {
+            this.display(previous);
+        }
+    }
+
+    public redo(): void {
+        const redo = this.redoStack();
+        if (redo.length === 0) {
+            return;
+        }
+        const current = this.diagram();
+        if (current) {
+            this.undoStack.update(undo => {
+                const next = [...undo, current.clone()];
+                if (next.length > 50) {
+                    next.shift();
+                }
+                return next;
+            });
+        }
+        const nextRedo = [...redo];
+        const next = nextRedo.pop();
+        this.redoStack.set(nextRedo);
+        if (next) {
+            this.display(next);
+        }
+    }
+
 
     public get reachabilityGraph$(): Observable<ReachabilityGraph> {
         return this._reachabilityGraph$.asObservable();

@@ -34,7 +34,7 @@
     @for (edge of diagram()?.edges; track $index) {
         <g SvgEdge
            [edge]="edge"
-           [readonlyMode]="readonlyMode() || selectedTool() === 'eraser' || selectedTool() ==='lightbulb'"
+           [readonlyMode]="readonlyMode() || selectedTool() === 'eraser' || selectedTool() ==='lightbulb' || selectedTool() === 'sketch'"
            [allowEdgeWeightModification]="allowEdgeWeightModification() && (!selectedTool() || selectedTool() === 'arc')"
            [allowEdgeLabelModification]="allowEdgeLabelModification()"
            [showHints]="this.showHints() && !this.readonlyMode()" />
@@ -46,12 +46,42 @@
            [diagramNodes]="diagram()?.nodes ?? []"
            [enforceUniqueLabels]="enforceUniqueLabels()"
            [allowTokenCountModification]="allowTokenCountModification()"
-           [readonlyMode]="readonlyMode() || selectedTool() === 'eraser'|| selectedTool() ==='lightbulb'"
+           [readonlyMode]="readonlyMode() || selectedTool() === 'eraser'|| selectedTool() ==='lightbulb' || selectedTool() === 'sketch'"
            [tokenGameMode]="tokenGameMode()"
-           [dragAndDropEnabled]="dragAndDropEnabled() && !readonlyMode() && selectedTool() !== 'arc' && selectedTool() !== 'eraser' && selectedTool() !=='lightbulb'"
+           [dragAndDropEnabled]="dragAndDropEnabled() && !readonlyMode() && selectedTool() !== 'arc' && selectedTool() !== 'eraser' && selectedTool() !=='lightbulb' && selectedTool() !== 'sketch'"
+           [disableBringToFrontOnClick]="selectedTool() === 'sketch'"
            [showHints]="this.showHints() && !this.readonlyMode()"
            (pointerdown)="onNodePointerDown($event, node)"
            (pointerup)="handleTokenGame($event, node)" />
+    }
+
+    @if (selectedTool() === 'sketch' && sketchController.selectedNodeId(); as selId) {
+        @for (node of diagram()?.nodes; track node.id) {
+            @if (node.id === selId) {
+                @if (node.kind === 'place') {
+                    <svg:circle class="sketch-selection-ring"
+                                [attr.cx]="node.x()"
+                                [attr.cy]="node.y()"
+                                [attr.r]="PLACE_RADIUS + 4"
+                                fill="none"
+                                stroke="#2196F3"
+                                stroke-width="2.5"
+                                stroke-dasharray="6 3"
+                                pointer-events="none" />
+                } @else {
+                    <svg:rect class="sketch-selection-ring"
+                              [attr.x]="node.x() - TRANSITION_WIDTH / 2 - 4"
+                              [attr.y]="node.y() - TRANSITION_HEIGHT / 2 - 4"
+                              [attr.width]="TRANSITION_WIDTH + 8"
+                              [attr.height]="TRANSITION_HEIGHT + 8"
+                              fill="none"
+                              stroke="#2196F3"
+                              stroke-width="2.5"
+                              stroke-dasharray="6 3"
+                              pointer-events="none" />
+                }
+            }
+        }
     }
     @if (ghostNode(); as ghost) {
         @if (ghost.kind === 'place') {
@@ -70,6 +100,8 @@
     }
 
 </svg:svg>
+
+<app-overlay-label-input />
 
 @if (readonlyMode()) {
     <div class="readonly-overlay"></div>

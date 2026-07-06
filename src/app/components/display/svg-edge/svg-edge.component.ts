@@ -171,6 +171,14 @@ export class SvgEdgeComponent extends InlineEditableLabelComponentBase<DiagramEd
         return this.edge();
     }
 
+    protected override getEditBoxSvgCenter(): { x: number; y: number } | undefined {
+        const mid = this.midPoint();
+        return {
+            x: mid.x,
+            y: mid.y - 9
+        };
+    }
+
     private isLoopWithoutWaypoints(edge: DiagramEdge, points: Coords[]) {
         return edge.source.id === edge.target.id && edge.waypoints().length === 0 && points.length === 4;
     }

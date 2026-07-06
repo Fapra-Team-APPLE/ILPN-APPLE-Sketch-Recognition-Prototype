@@ -31,60 +31,38 @@
     </svg:path>
 
 
-    @if (!isEditing()) {
 
-        @if (weight() !== 1) {
-            <svg:text [attr.x]="midPoint().x"
-                      [attr.y]="midPoint().y - 5"
-                      text-anchor="middle"
-                      font-size="12"
-                      fill="black"
-                      [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`"
-                      [class.text-valid]="validationStatus() === 'valid'"
-                      [class.text-invalid]="validationStatus() === 'invalid'"
-                      [class.text-partly-valid]="validationStatus() === 'partly-valid'">
-                {{ weight() }}
-            </svg:text>
-        }
-
-        <svg:text
-            [attr.data-editable]="!readonlyMode() && allowEdgeLabelModification()"
-            (pointerdown)="!readonlyMode() && $event.stopPropagation()"
-            (dblclick)="!readonlyMode() && allowEdgeLabelModification() && onLabelDblClick($event)"
-            style="user-select: none;"
-            [attr.x]="midPoint().x"
-            [attr.y]="midPoint().y - 5"
-            text-anchor="middle"
-            font-size="12"
-            fill="black"
-            [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`"
-            [class.text-valid]="validationStatus() === 'valid'"
-            [class.text-invalid]="validationStatus() === 'invalid'"
-            [class.text-partly-valid]="validationStatus() === 'partly-valid'">
-            {{ label() }}
+    @if (weight() !== 1) {
+        <svg:text [attr.x]="midPoint().x"
+                  [attr.y]="midPoint().y - 5"
+                  text-anchor="middle"
+                  font-size="12"
+                  fill="black"
+                  [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`"
+                  [class.text-valid]="validationStatus() === 'valid'"
+                  [class.text-invalid]="validationStatus() === 'invalid'"
+                  [class.text-partly-valid]="validationStatus() === 'partly-valid'">
+            {{ weight() }}
         </svg:text>
-
-
-    } @else {
-        <svg:foreignObject
-            [attr.x]="midPoint().x - EDIT_BOX_WIDTH/2"
-            [attr.y]="midPoint().y - EDIT_BOX_HEIGHT/2"
-            [attr.width]="EDIT_BOX_WIDTH"
-            [attr.height]="EDIT_BOX_HEIGHT"
-            (pointerdown)="$event.stopPropagation()">
-            <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
-                <input #labelInput
-                       type="text"
-                       [value]="editValue()"
-                       (pointerdown)="$event.stopPropagation()"
-                       (input)="onInputChange($event)"
-                       (keydown.enter)="onKeydownEnter($event)"
-                       (keydown.escape)="onKeydownEscape($event)"
-                       (blur)="commitEdit()"
-                       style="width:100%; box-sizing:border-box; padding:2px 4px; font-size:12px;" />
-            </div>
-        </svg:foreignObject>
     }
+
+    <svg:text
+        [attr.data-editable]="!readonlyMode() && allowEdgeLabelModification()"
+        (pointerdown)="!readonlyMode() && $event.stopPropagation()"
+        (dblclick)="!readonlyMode() && allowEdgeLabelModification() && onLabelDblClick($event)"
+        style="user-select: none;"
+        [attr.x]="midPoint().x"
+        [attr.y]="midPoint().y - 5"
+        text-anchor="middle"
+        font-size="12"
+        fill="black"
+        [attr.filter]="`url(#outlineEffect-${svgDefsIdSuffix})`"
+        [class.text-valid]="validationStatus() === 'valid'"
+        [class.text-invalid]="validationStatus() === 'invalid'"
+        [class.text-partly-valid]="validationStatus() === 'partly-valid'">
+        {{ label() }}
+    </svg:text>
+
 
     @if (showControls() && !isEditing()) {
         <svg:g>

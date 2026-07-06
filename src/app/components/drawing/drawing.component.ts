@@ -1,4 +1,4 @@
-import {Component, DestroyRef, effect, ElementRef, inject, OnDestroy, signal, Signal, untracked, viewChild} from '@angular/core';
+import {AfterViewInit, Component, DestroyRef, effect, ElementRef, inject, OnDestroy, signal, Signal, untracked, viewChild} from '@angular/core';
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 import {FormControl, ReactiveFormsModule} from '@angular/forms';
 import {MatIcon} from '@angular/material/icon';
@@ -34,7 +34,7 @@ import {ToolboxComponent} from '../toolbar/toolbox.component';
     templateUrl: './drawing.component.html',
     styleUrl: './drawing.component.scss'
 })
-export class DrawingComponent implements OnDestroy {
+export class DrawingComponent implements AfterViewInit, OnDestroy {
 
     private destroyRef = inject(DestroyRef);
     // Signal aus Service direkt nutzen
@@ -45,6 +45,8 @@ export class DrawingComponent implements OnDestroy {
     displayElement: Signal<ElementRef<HTMLElement> | undefined> = viewChild(DisplayComponent, {read: ElementRef});
 
     petriNetDefinitionControl = new FormControl('');
+    petriNetInput = viewChild<ElementRef<HTMLInputElement>>('petriNetInput');
+
 
     // "selectedTool" wird als Signal gespeichert, damit wir den aktuell
     // gewählten Werkzeug-Status unkompliziert sowohl an die Anzeige als auch
@@ -110,6 +112,11 @@ export class DrawingComponent implements OnDestroy {
         });
     }
 
+    ngAfterViewInit(): void {
+        // Autofocus, aber ohne die Website z. B. auf Mobilgeräten direkt nach unten zu scrollen
+        this.petriNetInput()?.nativeElement.focus({preventScroll: true});
+    }
+
     ngOnDestroy() {
         this.clearLayoutAnimation();
     }
@@ -125,6 +132,7 @@ export class DrawingComponent implements OnDestroy {
 
     clearCanvas() {
         this.displayService.display(null);
+        this.displayService.clearHistory();
         this.selectedTool.set(undefined);
         this.clearPetriNetDefinitionControl();
         this.validationService.clearValidationResult('Petri Net');
@@ -135,6 +143,7 @@ export class DrawingComponent implements OnDestroy {
         if (result) {
             if (typeof result !== 'string') {
                 this.displayService.display(result);
+                this.displayService.clearHistory();
                 this.playLayoutAnimation(result);
                 this.clearPetriNetDefinitionControl();
                 return;
@@ -144,6 +153,7 @@ export class DrawingComponent implements OnDestroy {
         }
         this.clearPetriNetDefinitionControl();
         this.displayService.display(null);
+        this.displayService.clearHistory();
     }
 
     showPetriNet() {
@@ -162,6 +172,7 @@ export class DrawingComponent implements OnDestroy {
             const frames: LayoutFrame[] = [];
             this.layoutService.applyForceDirectedLayout(result as unknown as Diagram, {frames, width: this.canvasWidth()});
             this.displayService.display(result);
+            this.displayService.clearHistory();
             this.playLayoutAnimation(this.displayService.diagram());
             return;
         }
@@ -170,6 +181,7 @@ export class DrawingComponent implements OnDestroy {
         this.petriNetDefinitionControl.setErrors({message: errorMessage});
         this.petriNetDefinitionControl.markAsTouched();
         this.displayService.display(null);
+        this.displayService.clearHistory();
     }
 
     private clearPetriNetDefinitionControl() {

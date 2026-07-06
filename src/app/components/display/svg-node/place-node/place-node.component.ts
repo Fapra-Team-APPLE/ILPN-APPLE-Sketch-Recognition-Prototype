@@ -1,6 +1,5 @@
 import {CommonModule} from '@angular/common';
 import {Component, computed, inject, input, signal} from '@angular/core';
-import {MatTooltip} from '@angular/material/tooltip';
 import {DiagramNode} from '../../../../classes/diagram/diagram-node';
 import {SvgDefsIdContextDirective} from '../../../../directives/svg-defs-id-context.directive';
 import {sanitizeString} from '../../../../services/parsing/parsing-util';
@@ -9,7 +8,7 @@ import {PLACE_RADIUS} from '../svg-node';
 
 @Component({
     selector: 'g[SvgPlaceNode]',
-    imports: [CommonModule, MatTooltip],
+    imports: [CommonModule],
     templateUrl: './place-node.component.html',
     styleUrl: './place-node.component.scss'
 })
@@ -90,6 +89,17 @@ export class PlaceNodeComponent extends InlineEditableLabelComponentBase {
 
     protected override getDiagramNodeOrEdge(): DiagramNode | undefined {
         return this.diagramNode();
+    }
+
+    override getEditBoxSvgCenter(): { x: number; y: number } | undefined {
+        const circle = this.circle();
+        if (!circle) {
+            return undefined;
+        }
+        return {
+            x: circle.cx,
+            y: circle.cy + circle.r + 11
+        };
     }
 
     protected override sanitizeEditValue(raw: string): string {

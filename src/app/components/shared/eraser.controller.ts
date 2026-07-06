@@ -20,12 +20,16 @@ export class EraserController<N extends IDiagramNode, E extends IDiagramEdge> {
         svg: SVGSVGElement | null;
         moveListener?: (e: PointerEvent) => void;
         upListener?: (e: PointerEvent) => void;
-    } = {active: false, svg: null};
+        activePointerId: number | null;
+    } = {active: false, svg: null, activePointerId: null};
 
     constructor(private readonly config: EraserConfig<N, E>) {
     }
 
     onCanvasPointerDown(event: PointerEvent) {
+        if (!event.isPrimary) {
+            return;
+        }
         if (this.config.getSelectedTool() !== 'eraser') {
             return;
         }
@@ -34,9 +38,13 @@ export class EraserController<N extends IDiagramNode, E extends IDiagramEdge> {
             return;
         }
         this.state.active = true;
+        this.state.activePointerId = event.pointerId;
         this.eraseByEvent(event);
 
         this.state.moveListener = (e: PointerEvent) => {
+            if (e.pointerId !== this.state.activePointerId) {
+                return;
+            }
             if (!this.state.active) {
                 return;
             }
@@ -50,8 +58,8 @@ export class EraserController<N extends IDiagramNode, E extends IDiagramEdge> {
         };
         this.state.upListener = (e: PointerEvent) => this.onPointerUp(e);
         window.addEventListener('pointermove', this.state.moveListener);
-        window.addEventListener('pointerup', this.state.upListener, {once: true});
-        window.addEventListener('pointercancel', this.state.upListener, {once: true});
+        window.addEventListener('pointerup', this.state.upListener);
+        window.addEventListener('pointercancel', this.state.upListener);
 
         event.preventDefault();
     }
@@ -59,11 +67,16 @@ export class EraserController<N extends IDiagramNode, E extends IDiagramEdge> {
     destroy() {
         this.state.active = false;
         this.state.svg = null;
+        this.state.activePointerId = null;
         this.cleanupListeners();
     }
 
-    private onPointerUp(_event: PointerEvent) {
+    private onPointerUp(event: PointerEvent) {
+        if (event.pointerId !== this.state.activePointerId) {
+            return;
+        }
         this.state.active = false;
+        this.state.activePointerId = null;
         this.cleanupListeners();
     }
 

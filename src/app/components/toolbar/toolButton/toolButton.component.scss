@@ -1,4 +1,5 @@
 .shape-btn {
+    touch-action: manipulation;
     background: transparent;
     color: inherit;
     margin: 10px;
@@ -17,6 +18,13 @@
 
     &:hover {
         background: #e5e7eb;
+    }
+
+    &:disabled {
+        opacity: 0.35;
+        pointer-events: none;
+        cursor: not-allowed;
+        background: transparent;
     }
 
     mat-icon {

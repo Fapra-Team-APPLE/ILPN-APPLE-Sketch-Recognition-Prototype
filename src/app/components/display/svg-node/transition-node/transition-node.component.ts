@@ -1,6 +1,5 @@
 import {CommonModule} from '@angular/common';
 import {afterNextRender, Component, computed, effect, ElementRef, inject, Injector, input, signal, untracked, viewChild} from '@angular/core';
-import {MatTooltip} from '@angular/material/tooltip';
 import {DiagramNode} from '../../../../classes/diagram/diagram-node';
 import {SvgDefsIdContextDirective} from '../../../../directives/svg-defs-id-context.directive';
 import {DisplayService} from '../../../../services/display.service';
@@ -10,7 +9,7 @@ import {TRANSITION_HEIGHT, TRANSITION_WIDTH} from '../svg-node';
 
 @Component({
     selector: 'g[SvgTransitionNode]',
-    imports: [CommonModule, MatTooltip],
+    imports: [CommonModule],
     templateUrl: './transition-node.component.html',
     styleUrl: './transition-node.component.scss'
 })
@@ -70,20 +69,20 @@ export class TransitionNodeComponent extends InlineEditableLabelComponentBase {
         return this.diagramNode();
     }
 
-    // keine Leerzeichen im Transition-Label erlauben wegen des Transition-Sequenz-Formats
-    override onInputChange(event: Event) {
-        const target = event.target as HTMLInputElement;
-        const raw = target.value ?? '';
-        const sanitized = raw
-            .replace(/\s+/g, '');
-        if (sanitized !== raw) {
-            target.value = sanitized;
+    protected override getEditBoxSvgCenter(): { x: number; y: number } | undefined {
+        const rect = this.rect();
+        if (!rect) {
+            return undefined;
         }
-        this.editValue.set(sanitized);
+        return {
+            x: rect.x + rect.w / 2,
+            y: rect.y + rect.h / 2
+        };
     }
 
+    // keine Leerzeichen im Transition-Label erlauben wegen des Transition-Sequenz-Formats
     protected override sanitizeEditValue(raw: string): string {
-        return sanitizeString(raw);
+        return sanitizeString(raw.replace(/\s+/g, ''));
     }
 
 }

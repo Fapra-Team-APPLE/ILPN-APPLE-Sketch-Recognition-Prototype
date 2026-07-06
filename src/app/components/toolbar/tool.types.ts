@@ -1,7 +1,7 @@
 // ToolType:  alle Werkzeuge, die in Toolbox ausgewählt werden können
 // -> orientiert an den existierenden DiagramNode-Kindern (
 // -> "arrow" existiert nun als Button, aber ohne Zeichenfunktion
-export type ToolType = 'clear' | 'place' | 'transition' | 'arc' | 'eraser' | 'layout' | 'lightbulb';
+export type ToolType = 'clear' | 'place' | 'transition' | 'arc' | 'eraser' | 'layout' | 'lightbulb' | 'sketch' | 'undo' | 'redo';
 
 export interface ButtonConfig {
     tooltip?: string;
@@ -17,5 +17,8 @@ export const BUTTON_LIBRARY: ReadonlyMap<ToolType, ButtonConfig> = new Map<ToolT
     ['arc', {tooltip: 'Arc', icon: 'arrow_forward'}],
     ['eraser', {tooltip: 'Eraser', svgIcon: 'eraser'}],
     ['layout', {tooltip: 'Auto Layout', icon: 'auto_fix_high'}],
-    ['lightbulb', {tooltip: 'Get Hint', svgIcon: 'lightbulb'}]
+    ['lightbulb', {tooltip: 'Get Hint', svgIcon: 'lightbulb'}],
+    ['sketch', {tooltip: 'Sketch Mode', icon: 'draw'}],
+    ['undo', {tooltip: 'Undo sketch change', icon: 'undo'}],
+    ['redo', {tooltip: 'Redo sketch change', icon: 'redo'}]
 ]);

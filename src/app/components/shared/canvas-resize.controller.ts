@@ -3,11 +3,11 @@ import {CANVAS_PADDING} from '../display/svg-node/svg-node';
 
 export class CanvasResizeController {
 
-    readonly canvasHeight = signal<number>(420);
+    readonly canvasHeight = signal<number>(570);
     readonly enableSmoothHeight = signal<boolean>(false);
     private readonly minHeight: number;
 
-    constructor(minHeight: number = 420) {
+    constructor(minHeight: number = 570) {
         this.minHeight = minHeight;
     }
 

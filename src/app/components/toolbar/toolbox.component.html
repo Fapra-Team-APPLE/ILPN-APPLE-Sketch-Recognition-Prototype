@@ -1,17 +1,19 @@
 <div class="toolContainer">
     <div style="display:flex; align-items:center">
         @for (toolButton of buttonInput(); track toolButton) {
-            <app-toolbutton
-                [buttonType]="toolButton"
-                [activeType]="activeTool()"
-                (selectTool)="toggleTool(toolButton)"
-            />
+            @if (activeTool() !== 'sketch' || (activeTool() === 'sketch' && toolButton === 'sketch')) {
+                <app-toolbutton
+                    [buttonType]="toolButton"
+                    [activeType]="activeTool()"
+                    (selectTool)="toggleTool(toolButton)"
+                />
+            }
         }
 
         @if (buttonInput().length > 0) {
             <app-toolbar-divider></app-toolbar-divider>
         }
-        @if (showEraserButton()) {
+        @if (showEraserButton() && activeTool() !== 'sketch') {
             <app-toolbutton
                 buttonType="eraser"
                 [activeType]="activeTool()"
@@ -36,6 +38,20 @@
                 buttonType="lightbulb"
                 [activeType]="activeTool()"
                 (selectTool)="toggleTool('lightbulb')"
+            />
+        }
+
+        @if (activeTool() === 'sketch') {
+            <app-toolbar-divider></app-toolbar-divider>
+            <app-toolbutton
+                buttonType="undo"
+                [disabled]="!displayService.canUndo()"
+                (selectTool)="displayService.undo()"
+            />
+            <app-toolbutton
+                buttonType="redo"
+                [disabled]="!displayService.canRedo()"
+                (selectTool)="displayService.redo()"
             />
         }
     </div>

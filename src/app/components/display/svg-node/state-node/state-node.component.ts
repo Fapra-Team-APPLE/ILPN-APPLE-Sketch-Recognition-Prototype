@@ -1,6 +1,5 @@
 import {CommonModule} from '@angular/common';
 import {Component, computed, effect, inject, input, signal} from '@angular/core';
-import {MatTooltip} from '@angular/material/tooltip';
 import {ReachabilityNode} from '../../../../classes/reachability/reachability-node';
 import {SvgDefsIdContextDirective} from '../../../../directives/svg-defs-id-context.directive';
 import {DisplayService} from '../../../../services/display.service';
@@ -12,7 +11,7 @@ export const STATE_NODE_HEIGHT = 40;
 @Component({
     selector: 'g[SvgStateNode]',
     standalone: true,
-    imports: [CommonModule, MatTooltip],
+    imports: [CommonModule],
     templateUrl: './state-node.component.html',
     styleUrl: './state-node.component.scss'
 })
@@ -101,21 +100,27 @@ export class StateNodeComponent extends InlineEditableLabelComponentBase<Reachab
         return this.diagramNode();
     }
 
+    protected override getEditBoxSvgCenter(): { x: number; y: number } | undefined {
+        const pos = this.position();
+        return { x: pos.x, y: pos.y };
+    }
+
+    protected override getEditBoxDimensions(): { width: number; height: number } {
+        return { width: this.stateNodeEditBoxWidth, height: this.stateNodeEditBoxHeight };
+    }
+
+    protected override getEditPlaceholder(): string | undefined {
+        return 'e.g. 0, 1, w, 2';
+    }
+
     override onLabelDblClick(event: Event) {
         super.onLabelDblClick(event);
         this.editValue.set(this.label().replace(/[()]/g, '').replace(/,/g, ', ')); // Klammern entfernen für die Bearbeitung
     }
 
     // nur Ziffern, w (Omega), Komma und Leerzeichen erlauben
-    override onInputChange(event: Event) {
-        const target = event.target as HTMLInputElement;
-        const raw = target.value ?? '';
-        const sanitized = raw
-            .replace(/[^0-9w, ]+/g, '');
-        if (sanitized !== raw) {
-            target.value = sanitized;
-        }
-        this.editValue.set(sanitized);
+    override sanitizeEditValue(raw: string): string {
+        return raw.replace(/[^0-9w, ]+/g, '');
     }
 
     /**

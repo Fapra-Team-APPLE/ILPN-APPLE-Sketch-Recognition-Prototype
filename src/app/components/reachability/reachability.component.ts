@@ -14,6 +14,7 @@ import {ReachabilityNode} from '../../classes/reachability/reachability-node';
 import {SvgDefsIdContextDirective} from '../../directives/svg-defs-id-context.directive';
 import {DisplayService} from '../../services/display.service';
 import {NodeDimensionService} from '../../services/node-dimension.service';
+import {OverlayEditService} from '../../services/overlay-edit.service';
 import {OverlayService} from '../../services/overlay.service';
 import {ReachabilityGraphGeneratorService} from '../../services/reachability/reachability-graph-generator.service';
 import {ReachabilityLayoutService} from '../../services/reachability/reachability-layout.service';
@@ -31,6 +32,7 @@ import {CanvasPanningController} from '../shared/canvas-panning.controller';
 import {CanvasResizeController} from '../shared/canvas-resize.controller';
 import {EraserController} from '../shared/eraser.controller';
 import {LightbulbController} from '../shared/lightbulb.controller';
+import {OverlayLabelInputComponent} from '../shared/overlay-label-input/overlay-label-input.component';
 import {ToolType} from '../toolbar/tool.types';
 import {ToolboxTextButtonComponent} from '../toolbar/toolbox-text-button/toolbox-text-button.component';
 import {ToolboxComponent} from '../toolbar/toolbox.component';
@@ -89,9 +91,19 @@ interface VisualReachabilityEdge extends ReachabilityEdge {
 @Component({
     selector: 'app-reachability',
     standalone: true,
-    imports: [SvgNodeComponent, SvgEdgeComponent, SvgDefsIdContextDirective, DisplayComponent, ToolboxComponent, ToolboxTextButtonComponent, OverlayModule, PortalModule],
+    imports: [
+        SvgNodeComponent,
+        SvgEdgeComponent,
+        SvgDefsIdContextDirective,
+        DisplayComponent,
+        ToolboxComponent,
+        ToolboxTextButtonComponent,
+        OverlayModule,
+        PortalModule,
+        OverlayLabelInputComponent
+    ],
     templateUrl: './reachability.component.html',
-    providers: [NodeDimensionService],
+    providers: [NodeDimensionService, OverlayEditService],
     styleUrls: ['./reachability.component.scss'],
     host: {
         '[class.eraser-active]': 'this.selectedTool() === "eraser"',

@@ -15,16 +15,18 @@ export const convertGlobalToSvgCoordinates = (svg: SVGSVGElement, clientX: numbe
     return {x: p.x, y: p.y};
 };
 
-export const hitTest = (svg: SVGSVGElement, node: IDiagramNode, clientX: number, clientY: number, stateDimension?: {w: number, h: number}) => {
-    const p = convertGlobalToSvgCoordinates(svg, clientX, clientY);
-    if (!p) {
-        return false;
-    }
+export const hitTestSvgPoint = (node: IDiagramNode, p: Coords, stateDimension?: {w: number; h: number}, includeLabel = false) => {
     if (node.kind === 'place') {
         const dx = p.x - node.x();
         const dy = p.y - node.y();
         const distance = Math.sqrt(dx * dx + dy * dy);
-        return distance <= PLACE_RADIUS;
+        if (distance <= PLACE_RADIUS) {
+            return true;
+        }
+        if (!includeLabel) {
+            return false;
+        }
+        return hitTestPlaceLabel(node, dx, dy);
     }
 
     let halfW: number;
@@ -42,14 +44,16 @@ export const hitTest = (svg: SVGSVGElement, node: IDiagramNode, clientX: number,
     return Math.abs(p.x - node.x()) <= halfW && Math.abs(p.y - node.y()) <= halfH;
 };
 
-export const isPointNearSegment = (svg: SVGSVGElement, edge: IDiagramEdge, clientX: number, clientY: number): boolean => {
-    const pointer = convertGlobalToSvgCoordinates(svg, clientX, clientY);
-    if (!pointer) {
+// eslint-disable-next-line max-params
+export const hitTest = (svg: SVGSVGElement, node: IDiagramNode, clientX: number, clientY: number, stateDimension?: {w: number, h: number}, includeLabel = false) => {
+    const p = convertGlobalToSvgCoordinates(svg, clientX, clientY);
+    if (!p) {
         return false;
     }
+    return hitTestSvgPoint(node, p, stateDimension, includeLabel);
+};
 
-    const hitTolerancePx = 8;
-
+export function isSvgPointNearSegment(edge: IDiagramEdge, pointer: Coords, hitTolerancePx = 8) {
     const waypoints = getEffectiveWaypoints(edge);
     let polylinePoints: Coords[];
 
@@ -81,12 +85,21 @@ export const isPointNearSegment = (svg: SVGSVGElement, edge: IDiagramEdge, clien
         const segmentEnd = polylinePoints[index + 1];
 
         const distanceToSegment = closestDistanceFromPointToLine(pointer, segmentStart, segmentEnd);
-        if (distanceToSegment <= hitTolerancePx) {
+        if (distanceToSegment <= Math.max(1, hitTolerancePx)) {
             return true;
         }
     }
 
     return false;
+}
+
+export const isPointNearSegment = (svg: SVGSVGElement, edge: IDiagramEdge, clientX: number, clientY: number): boolean => {
+    const pointer = convertGlobalToSvgCoordinates(svg, clientX, clientY);
+    if (!pointer) {
+        return false;
+    }
+
+    return isSvgPointNearSegment(edge, pointer);
 };
 
 export const calculateLoopControlPoints = (x: number, y: number): Coords[] => {
@@ -184,7 +197,7 @@ export const bringToFront = (element: SVGGElement | null) => {
 };
 
 // https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
-const closestDistanceFromPointToLine = (point: Coords, start: Coords, end: Coords): number => {
+export const closestDistanceFromPointToLine = (point: Coords, start: Coords, end: Coords): number => {
     const deltaX = end.x - start.x;
     const deltaY = end.y - start.y;
     const lineLengthSquared = deltaX * deltaX + deltaY * deltaY;
@@ -205,4 +218,30 @@ const closestDistanceFromPointToLine = (point: Coords, start: Coords, end: Coord
 
     // Euklidischer Abstand zum nächstgelegenen Punkt
     return Math.hypot(point.x - closestX, point.y - closestY);
+};
+
+const hitTestPlaceLabel = (node: IDiagramNode, dx: number, dy: number) => {
+    const labelWidth = getTextWidth(node.effectiveLabel());
+    const halfLabelW = labelWidth / 2;
+    const padding = 10;
+
+    const labelTop = PLACE_RADIUS + 3;
+    const labelBottom = PLACE_RADIUS + 23;
+    return Math.abs(dx) <= (halfLabelW + padding) && dy >= labelTop && dy <= labelBottom;
+};
+
+
+let textMeasurementCanvas: HTMLCanvasElement | null = null;
+
+export const getTextWidth = (text: string, font = '12px "Courier New", sans-serif'): number => {
+    if (typeof document === 'undefined') {
+        return text.length * 7.2;
+    }
+    textMeasurementCanvas ??= document.createElement('canvas');
+    const context = textMeasurementCanvas.getContext('2d');
+    if (context) {
+        context.font = font;
+        return context.measureText(text).width;
+    }
+    return text.length * 7.2;
 };

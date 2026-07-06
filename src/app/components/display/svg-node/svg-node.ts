@@ -5,8 +5,8 @@ import {STATE_NODE_HEIGHT} from './state-node/state-node.component';
 export const PLACE_RADIUS = 22;
 export const TRANSITION_WIDTH = 44;
 export const TRANSITION_HEIGHT = 44;
-export const EDIT_BOX_WIDTH = 120;
-export const EDIT_BOX_HEIGHT = 22;
+export const EDIT_BOX_WIDTH = 150;
+export const EDIT_BOX_HEIGHT = 30;
 
 export const TRANSITION_HALF_WIDTH = TRANSITION_WIDTH / 2;
 export const TRANSITION_HALF_HEIGHT = TRANSITION_HEIGHT / 2;

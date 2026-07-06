@@ -1,5 +1,5 @@
 import {HttpClient} from '@angular/common/http';
-import {Component, computed, effect, input, model, OnDestroy, output, signal} from '@angular/core';
+import {Component, computed, effect, ElementRef, input, model, OnDestroy, output, signal, viewChildren} from '@angular/core';
 import {MatButtonModule} from '@angular/material/button';
 import {MatIcon} from '@angular/material/icon';
 import {MatTooltip} from '@angular/material/tooltip';
@@ -13,9 +13,11 @@ import {DisplayService} from '../../services/display.service';
 import {ExportService} from '../../services/export.service';
 import {FileReaderService} from '../../services/file-reader.service';
 import {NodeDimensionService} from '../../services/node-dimension.service';
+import {OverlayEditService} from '../../services/overlay-edit.service';
 import {OverlayService} from '../../services/overlay.service';
 import {TabNavigationService} from '../../services/tab-navigation.service';
 import {TransitionSequencesValidationService} from '../../services/transition-sequences-validation.service';
+import {SketchModeController} from '../../sketch/sketch-mode.controller';
 import {ArcDrawingController} from '../shared/arc-drawing.controller';
 import {hitTest} from '../shared/canvas-helper';
 import {CanvasPanningController} from '../shared/canvas-panning.controller';
@@ -24,6 +26,7 @@ import {DownloadButtonComponent} from '../shared/download-button/download-button
 import {EraserController} from '../shared/eraser.controller';
 import {ExampleFileComponent} from '../shared/example-file/example-file.component';
 import {LightbulbController} from '../shared/lightbulb.controller';
+import {OverlayLabelInputComponent} from '../shared/overlay-label-input/overlay-label-input.component';
 import {TokenGameToggleComponent} from '../shared/tokengame-toggle/token-game-toggle.component';
 import {ToolType} from '../toolbar/tool.types';
 import {SvgEdgeComponent} from './svg-edge/svg-edge.component';
@@ -33,12 +36,23 @@ import {SvgNodeComponent} from './svg-node/svg-node.component';
 @Component({
     selector: 'app-display',
     templateUrl: './display.component.html',
-    providers: [NodeDimensionService],
-    imports: [SvgNodeComponent, SvgEdgeComponent, SvgDefsIdContextDirective, MatButtonModule, MatIcon, MatTooltip, DownloadButtonComponent, TokenGameToggleComponent],
+    providers: [NodeDimensionService, OverlayEditService],
+    imports: [
+        SvgNodeComponent,
+        SvgEdgeComponent,
+        SvgDefsIdContextDirective,
+        MatButtonModule,
+        MatIcon,
+        MatTooltip,
+        DownloadButtonComponent,
+        TokenGameToggleComponent,
+        OverlayLabelInputComponent
+    ],
     styleUrls: ['./display.component.scss'],
     host: {
         '[class.eraser-active]': 'this.selectedTool() === "eraser"',
         '[class.lightbulb-active]': 'this.selectedTool() === "lightbulb"',
+        '[class.sketch-active]': 'this.selectedTool() === "sketch"',
         '[class.readonly-mode]': 'this.readonlyMode()'
     }
 })
@@ -61,6 +75,7 @@ export class DisplayComponent implements OnDestroy {
     readonly tokenGameContext = input<'sequences' | 'process-net' | 'reachability'>();
     readonly hint = input<DiagramHint | undefined>(undefined);
 
+    readonly nodeComponents = viewChildren(SvgNodeComponent);
 
     // WritableSignal für GhostNode speichert Mausposition, um diese Weiterzugeben - Werte werden laufend aktualisiert
     readonly ghostNode = signal<{kind: DiagramNodeKind; x: number; y: number} | null>(null);
@@ -153,6 +168,18 @@ export class DisplayComponent implements OnDestroy {
         getNodeDimension: (id: string) => this.nodeDimensionService.getDimension(id)()
     });
 
+    protected sketchController = new SketchModeController({
+        getSelectedTool: () => this.selectedTool(),
+        getDiagram: () => this.diagram(),
+        setDiagram: (d) => this.diagram.set(d),
+        findSvgForEventTarget: (target) => this.findSvgForEventTarget(target),
+        getNodeDimension: (id: string) => this.nodeDimensionService.getDimension(id)(),
+        startEditingNodeLabel: (id) => this.startEditingNodeLabel(id),
+        saveHistoryStep: () => this.displayService.saveHistoryStep(),
+        undo: () => this.displayService.undo(),
+        redo: () => this.displayService.redo()
+    });
+
     // eslint-disable-next-line max-params
     constructor(private fileReaderService: FileReaderService,
                 private http: HttpClient,
@@ -161,7 +188,15 @@ export class DisplayComponent implements OnDestroy {
                 private nodeDimensionService: NodeDimensionService,
                 private transitionSequenceService: TransitionSequencesValidationService,
                 private readonly overlayService: OverlayService,
-                protected readonly displayService: DisplayService ) {
+                protected readonly displayService: DisplayService,
+                private readonly elementRef: ElementRef) {
+        const hostEl = this.elementRef.nativeElement as HTMLElement;
+        hostEl.addEventListener('touchmove', (e: Event) => {
+            // Standardverhalten von Mobile-Browsern bei schnell aufeinanderfolgenden Touch-Aktionen unterbinden, damit alle touch events von der Anwendung selbst behandelt
+            // werden können
+            e.preventDefault();
+        }, {passive: false});
+
         // effect() leert beim Werkzeugwechsel das Signal "ghostNode"
         effect(() => {
             const tool: ToolType | undefined = this.selectedTool();
@@ -192,6 +227,7 @@ export class DisplayComponent implements OnDestroy {
     ngOnDestroy(): void {
         this.arcController.destroy();
         this.eraserController.destroy();
+        this.sketchController.destroy();
     }
 
     // -------------------- Datei-Drop --------------------
@@ -247,10 +283,19 @@ export class DisplayComponent implements OnDestroy {
 
     // -------------------- Node-Erzeugung / Eraser / Lightbulb --------------------
     onCanvasPointerDown(event: PointerEvent) {
+        if (!event.isPrimary) {
+            return;
+        }
         if (this.readonlyMode() || this.tokenGameMode()) {
             return;
         }
-        if (this.selectedTool() === 'eraser') {
+        if (this.selectedTool() === 'sketch') {
+            const active = document.activeElement;
+            if (active && active instanceof HTMLInputElement && active !== event.target) {
+                active.blur();
+            }
+            this.sketchController.onCanvasPointerDown(event);
+        } else if (this.selectedTool() === 'eraser') {
             this.eraserController.onCanvasPointerDown(event);
         } else {
             this.panningController.onPointerDown(event);
@@ -280,6 +325,9 @@ export class DisplayComponent implements OnDestroy {
     }
 
     onCanvasPointerUp(event: PointerEvent) {
+        if (!event.isPrimary) {
+            return;
+        }
         this.panningController.onPointerUp(event);
         this.onCanvasPointerUpLightbulb(event);
     }
@@ -317,6 +365,9 @@ export class DisplayComponent implements OnDestroy {
     // damit sie immer direkt unter dem Cursor liegt
 
     onCanvasPointerMove(event: PointerEvent): void {
+        if (!event.isPrimary) {
+            return;
+        }
         if (this.readonlyMode() || this.tokenGameMode()) {
             return;
         }
@@ -353,7 +404,11 @@ export class DisplayComponent implements OnDestroy {
         if (this.readonlyMode() || this.tokenGameMode()) {
             return;
         }
-        this.arcController.onNodePointerDown(event, node);
+        if (this.selectedTool() === 'sketch') {
+            this.sketchController.onNodePointerDown(event);
+        } else {
+            this.arcController.onNodePointerDown(event, node);
+        }
     }
 
     private isValidArc(a: IDiagramNode, b: IDiagramNode) {
@@ -378,6 +433,13 @@ export class DisplayComponent implements OnDestroy {
 
     private findSvgForEventTarget(target: EventTarget | null) {
         return (target as Element | null)?.closest('svg') as SVGSVGElement | null;
+    }
+
+    private startEditingNodeLabel(nodeId: string) {
+        const nodeComponent = this.nodeComponents().find(c => c.diagramNode()?.id === nodeId);
+        if (nodeComponent) {
+            nodeComponent.startLabelEditing();
+        }
     }
 
     protected downloadDiagram() {

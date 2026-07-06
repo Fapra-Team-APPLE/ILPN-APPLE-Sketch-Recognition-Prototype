@@ -30,12 +30,16 @@ export class ArcDrawingController<N extends IDiagramNode, E extends IDiagramEdge
         upListener: (e: PointerEvent) => void;
         keyDownListener: (e: KeyboardEvent) => void;
         wasMoved: boolean;
+        activePointerId: number;
     };
 
     constructor(private readonly config: ArcDrawingConfig<N, E>) {
     }
 
     public onNodePointerDown(event: PointerEvent, node: N) {
+        if (!event.isPrimary) {
+            return;
+        }
         if (this.config.getSelectedTool() !== 'arc') {
             return;
         }
@@ -47,7 +51,7 @@ export class ArcDrawingController<N extends IDiagramNode, E extends IDiagramEdge
             return;
         }
         event.stopPropagation();
-        this.beginDrag(svg, node);
+        this.beginDrag(svg, node, event.pointerId);
     }
 
     public destroy() {
@@ -55,7 +59,7 @@ export class ArcDrawingController<N extends IDiagramNode, E extends IDiagramEdge
     }
 
 
-    private beginDrag(svg: SVGSVGElement, source: N) {
+    private beginDrag(svg: SVGSVGElement, source: N, pointerId: number) {
         this.cleanup();
 
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -71,6 +75,9 @@ export class ArcDrawingController<N extends IDiagramNode, E extends IDiagramEdge
         svg.appendChild(line);
 
         const moveListener = (e: PointerEvent) => {
+            if (e.pointerId !== this.drag?.activePointerId) {
+                return;
+            }
             if (this.drag) {
                 this.drag.wasMoved = true;
             }
@@ -94,14 +101,17 @@ export class ArcDrawingController<N extends IDiagramNode, E extends IDiagramEdge
         };
 
         window.addEventListener('pointermove', moveListener);
-        window.addEventListener('pointerup', upListener, {once: true});
-        window.addEventListener('pointercancel', upListener, {once: true});
+        window.addEventListener('pointerup', upListener);
+        window.addEventListener('pointercancel', upListener);
         window.addEventListener('keydown', keyDownListener);
 
-        this.drag = {source, svg, tempLine: line, moveListener, upListener, keyDownListener, wasMoved: false};
+        this.drag = {source, svg, tempLine: line, moveListener, upListener, keyDownListener, wasMoved: false, activePointerId: pointerId};
     }
 
     private finishDrag(e: PointerEvent, source: N, svg: SVGSVGElement) {
+        if (e.pointerId !== this.drag?.activePointerId) {
+            return;
+        }
         const nodes = this.config.getNodes();
         if (!nodes || nodes.length === 0) {
             this.cleanup();

@@ -4,7 +4,7 @@
 <app-toolbox
     [(activeTool)]="selectedTool"
     (clearCanvas)="clearCanvas()"
-    [buttonInput]="['place','transition','arc']"
+    [buttonInput]="['place','transition','arc','sketch']"
     [showLayoutButton]="true"
     (layout)="applyLayout()">
     @if (!showHints() || (showHints() && (givenPnCtrl.value ?? '').trim().length > 0)) {
@@ -40,9 +40,9 @@
     <mat-form-field appearance="outline"
                     class="pn-input-field">
         <mat-label>Enter petri net to display</mat-label>
-        <input matInput
+        <input #petriNetInput
+               matInput
                placeholder="Example: ({p1,p2},{t},2x(p1,t)+(t,p2),3xp1)"
-               autofocus
                [formControl]="petriNetDefinitionControl"
                (keyup.enter)="showPetriNet()">
         @if (petriNetDefinitionControl.hasError("message")) {
