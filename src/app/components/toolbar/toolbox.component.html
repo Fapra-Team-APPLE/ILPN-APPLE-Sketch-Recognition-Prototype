@@ -10,7 +10,7 @@
             }
         }
 
-        @if (buttonInput().length > 0) {
+        @if (buttonInput().length > 0 && activeTool() !== 'sketch') {
             <app-toolbar-divider></app-toolbar-divider>
         }
         @if (showEraserButton() && activeTool() !== 'sketch') {

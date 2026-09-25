@@ -1,8 +1,10 @@
 import {AfterViewInit, Component, DestroyRef, effect, ElementRef, inject, OnDestroy, signal, Signal, untracked, viewChild} from '@angular/core';
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 import {FormControl, ReactiveFormsModule} from '@angular/forms';
+import {MatButtonModule} from '@angular/material/button';
 import {MatIcon} from '@angular/material/icon';
 import {MatFormField, MatInput, MatLabel, MatSuffix} from '@angular/material/input';
+import {MatMenuModule} from '@angular/material/menu';
 import {MatTooltip} from '@angular/material/tooltip';
 import {Diagram} from '../../classes/diagram/diagram';
 import {DisplayService} from '../../services/display.service';
@@ -29,7 +31,9 @@ import {ToolboxComponent} from '../toolbar/toolbox.component';
         ToolboxComponent,
         MatTooltip,
         MatIcon,
-        MatSuffix
+        MatSuffix,
+        MatButtonModule,
+        MatMenuModule
     ],
     templateUrl: './drawing.component.html',
     styleUrl: './drawing.component.scss'
@@ -133,9 +137,23 @@ export class DrawingComponent implements AfterViewInit, OnDestroy {
     clearCanvas() {
         this.displayService.display(null);
         this.displayService.clearHistory();
-        this.selectedTool.set(undefined);
+        if (this.selectedTool() !== 'sketch') {
+            this.selectedTool.set(undefined);
+        }
         this.clearPetriNetDefinitionControl();
         this.validationService.clearValidationResult('Petri Net');
+    }
+
+    toggleSketchMode() {
+        if (this.selectedTool() === 'sketch') {
+            this.selectedTool.set(undefined);
+            return;
+        }
+        this.selectedTool.set('sketch');
+    }
+
+    isSketchModeActive(): boolean {
+        return this.selectedTool() === 'sketch';
     }
 
     processSourceChange(newSource: string) {

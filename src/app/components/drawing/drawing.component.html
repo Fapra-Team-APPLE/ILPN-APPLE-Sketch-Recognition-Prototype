@@ -4,7 +4,7 @@
 <app-toolbox
     [(activeTool)]="selectedTool"
     (clearCanvas)="clearCanvas()"
-    [buttonInput]="['place','transition','arc','sketch']"
+    [buttonInput]="['place','transition','arc']"
     [showLayoutButton]="true"
     (layout)="applyLayout()">
     @if (!showHints() || (showHints() && (givenPnCtrl.value ?? '').trim().length > 0)) {
@@ -23,6 +23,21 @@
                    [formControl]="givenPnCtrl">
         </mat-form-field>
     }
+
+    <button type="button"
+            mat-icon-button
+            [matMenuTriggerFor]="sketchMenu"
+            matTooltip="More options"
+            aria-label="More drawing options">
+        <mat-icon>more_vert</mat-icon>
+    </button>
+
+    <mat-menu #sketchMenu="matMenu">
+        <button mat-menu-item (click)="toggleSketchMode()">
+            <mat-icon>{{isSketchModeActive() ? 'edit_off' : 'edit'}}</mat-icon>
+            <span>{{isSketchModeActive() ? 'Disable Sketch Mode' : 'Enable Sketch Mode'}}</span>
+        </button>
+    </mat-menu>
 </app-toolbox>
 <app-display [(diagram)]="displayService.diagram"
              [dragAndDropEnabled]="true"
