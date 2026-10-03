@@ -88,13 +88,25 @@ export class DisplayComponent implements OnDestroy {
     readonly resizeController = new CanvasResizeController();
 
     private readonly panningController = new CanvasPanningController({
-        canStartPanning: () => !this.readonlyMode() && !this.tokenGameMode() && !this.selectedTool() && (this.diagram()?.nodes?.length ?? 0) > 0,
+        canStartPanning: () => {
+            if (this.readonlyMode() || this.tokenGameMode() || (this.diagram()?.nodes?.length ?? 0) === 0) {
+                return false;
+            }
+            if (!this.selectedTool()) {
+                return true;
+            }
+            return this.selectedTool() === 'sketch' && this.displayService.sketchSubMode() === 'move';
+        },
         diagram: () => this.diagram(),
         nodeDimensionService: this.nodeDimensionService
     });
 
     readonly canvasCursor = computed(() => {
         const hasNodes = (this.diagram()?.nodes?.length ?? 0) > 0;
+
+        if (this.selectedTool() === 'sketch') {
+            return this.displayService.sketchSubMode() === 'move' ? 'grab' : 'crosshair';
+        }
 
         const canPan =
             hasNodes &&
@@ -177,7 +189,8 @@ export class DisplayComponent implements OnDestroy {
         startEditingNodeLabel: (id) => this.startEditingNodeLabel(id),
         saveHistoryStep: () => this.displayService.saveHistoryStep(),
         undo: () => this.displayService.undo(),
-        redo: () => this.displayService.redo()
+        redo: () => this.displayService.redo(),
+        getSubMode: () => this.displayService.sketchSubMode()
     });
 
     // eslint-disable-next-line max-params
@@ -202,6 +215,12 @@ export class DisplayComponent implements OnDestroy {
             const tool: ToolType | undefined = this.selectedTool();
             if (tool !== 'place' && tool !== 'transition') {
                 this.ghostNode.set(null);
+            }
+        });
+
+        effect(() => {
+            if (this.displayService.sketchSubMode() === 'move') {
+                this.sketchController.clearSelection();
             }
         });
 
@@ -294,6 +313,25 @@ export class DisplayComponent implements OnDestroy {
             if (active && active instanceof HTMLInputElement && active !== event.target) {
                 active.blur();
             }
+
+            const isPen = event.pointerType === 'pen';
+            const isMoveMode = this.displayService.sketchSubMode() === 'move';
+
+            if (!isPen && isMoveMode) {
+                const svg = this.findSvgForEventTarget(event.currentTarget);
+                const diagram = this.diagram();
+                const hitNode = svg && diagram
+                    ? diagram.nodes.find(n => hitTest(svg, n, event.clientX, event.clientY, this.nodeDimensionService.getDimension(n.id)(), true))
+                    : null;
+
+                if (hitNode) {
+                    this.sketchController.startDirectDrag(event, hitNode);
+                } else {
+                    this.panningController.onPointerDown(event);
+                }
+                return;
+            }
+
             this.sketchController.onCanvasPointerDown(event);
         } else if (this.selectedTool() === 'eraser') {
             this.eraserController.onCanvasPointerDown(event);
@@ -405,6 +443,13 @@ export class DisplayComponent implements OnDestroy {
             return;
         }
         if (this.selectedTool() === 'sketch') {
+            const isPen = event.pointerType === 'pen';
+            const isMoveMode = this.displayService.sketchSubMode() === 'move';
+
+            if (!isPen && isMoveMode) {
+                this.sketchController.startDirectDrag(event, node);
+                return;
+            }
             this.sketchController.onNodePointerDown(event);
         } else {
             this.arcController.onNodePointerDown(event, node);

@@ -22,6 +22,7 @@ export interface SketchModeConfig {
     saveHistoryStep(): void;
     undo(): void;
     redo(): void;
+    getSubMode?(): string | undefined | null;
 }
 
 
@@ -56,6 +57,7 @@ export class SketchModeController {
         startNodeX: number;
         startNodeY: number;
         hasStartedMoving?: boolean;
+        isDirectDrag?: boolean;
     } | null = null;
 
     readonly selectedNodeId = this.selectionManager.selectedNodeId;
@@ -146,7 +148,11 @@ export class SketchModeController {
             }
         }
 
-        if (hitNode && this.selectionManager.isSelected(hitNode.id)) {
+        // Drag-and-Drop für selektierte Knoten ermöglichen
+        // - Im draw-Modus: auch mit Stift erlaubt
+        // - Im move-Modus: nur mit Touch/Mouse (nicht mit Stift)
+        const isAllowedForPointerType = event.pointerType !== 'pen' || this.config.getSubMode?.() === 'draw';
+        if (isAllowedForPointerType && hitNode && this.selectionManager.isSelected(hitNode.id)) {
             // Bereits selektiert -> Drag starten
             this.dragState = {
                 node: hitNode,
@@ -174,6 +180,38 @@ export class SketchModeController {
         event.stopPropagation();
     }
 
+    startDirectDrag(event: PointerEvent, node: IDiagramNode): void {
+        if (!this.isSketchModeActive()) {
+            return;
+        }
+        this.activePointerId = event.pointerId;
+        const svg = this.config.findSvgForEventTarget(event.currentTarget);
+        if (svg) {
+            this.activeSvg = svg;
+        }
+
+        this.dragState = {
+            node,
+            startX: event.clientX,
+            startY: event.clientY,
+            startNodeX: node.x(),
+            startNodeY: node.y(),
+            isDirectDrag: true
+        };
+
+        this.flushMultiStrokeBuffer();
+        this.removeStrokePreview();
+        this.strokeCollector.reset();
+
+        this.cleanupListeners();
+        window.addEventListener('pointermove', this.boundPointerMove);
+        window.addEventListener('pointerup', this.boundPointerUp);
+        window.addEventListener('pointercancel', this.boundPointerUp);
+
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
     onNodePointerDown(event: PointerEvent): void {
         if (!this.isSketchModeActive()) {
             return;
@@ -190,6 +228,10 @@ export class SketchModeController {
         this.activePointerId = null;
         this.dragState = null;
         window.removeEventListener('keydown', this.boundKeyDown);
+    }
+
+    clearSelection(): void {
+        this.selectionManager.clear();
     }
 
 
@@ -248,15 +290,24 @@ export class SketchModeController {
             const dx = event.clientX - this.dragState.startX;
             const dy = event.clientY - this.dragState.startY;
             const dist = Math.hypot(dx, dy);
+            const draggedNode = this.dragState.node;
+            const isDirectDrag = this.dragState.isDirectDrag;
 
             this.dragState = null;
             this.strokeCollector.reset();
 
-            if (dist < 5) { // Wenn der Benutzer sich kaum bewegt hat (weniger als 5 Pixel), als Tap/Klick zur Label-Bearbeitung behandeln
-                const svg = this.activeSvg;
-                const diagram = this.config.getDiagram();
-                if (svg && diagram) {
-                    this.handleTap(event, svg, diagram);
+            if (dist < 5) {
+                if (isDirectDrag) {
+                    // Single Tap im Verschieben-Modus: Direkt Label-Editor öffnen
+                    this.config.startEditingNodeLabel(draggedNode.id);
+                    this.selectionManager.clear();
+                } else {
+                    // Wenn der Benutzer sich kaum bewegt hat (weniger als 5 Pixel), als Tap/Klick zur Label-Bearbeitung behandeln
+                    const svg = this.activeSvg;
+                    const diagram = this.config.getDiagram();
+                    if (svg && diagram) {
+                        this.handleTap(event, svg, diagram);
+                    }
                 }
             }
             return;
@@ -278,7 +329,13 @@ export class SketchModeController {
         if (classification === 'tap') {
             this.removeStrokePreview();
             this.flushMultiStrokeBuffer();
-            this.handleTap(event, svg, diagram);
+            if (this.config.getSubMode?.() === 'move') {
+                // Im Verschieben-Modus selektiert ein Stift-Tap keinen Knoten
+                this.selectionManager.clear();
+                this.handleStroke(points);
+            } else {
+                this.handleTap(event, svg, diagram);
+            }
         } else {
             this.handleStroke(points);
         }
@@ -297,7 +354,7 @@ export class SketchModeController {
 
         const hitNode = diagram.nodes.find(n => hitTest(svg, n, event.clientX, event.clientY, this.config.getNodeDimension(n.id), true));
 
-        if (!hitNode) {
+        if (!hitNode || this.config.getSubMode?.() === 'move') {
             this.selectionManager.tapOnCanvas();
             return;
         }

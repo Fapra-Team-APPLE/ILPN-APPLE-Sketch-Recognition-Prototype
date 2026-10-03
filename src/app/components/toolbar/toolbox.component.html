@@ -43,6 +43,21 @@
 
         @if (activeTool() === 'sketch') {
             <app-toolbar-divider></app-toolbar-divider>
+            <div class="split-button-group">
+                <app-toolbutton
+                    class="group-start"
+                    buttonType="sketch-draw"
+                    [activeType]="displayService.sketchSubMode() === 'draw' ? 'sketch-draw' : undefined"
+                    (selectTool)="displayService.setSketchSubMode('draw')"
+                />
+                <app-toolbutton
+                    class="group-end"
+                    buttonType="sketch-move"
+                    [activeType]="displayService.sketchSubMode() === 'move' ? 'sketch-move' : undefined"
+                    (selectTool)="displayService.setSketchSubMode('move')"
+                />
+            </div>
+            <app-toolbar-divider></app-toolbar-divider>
             <app-toolbutton
                 buttonType="undo"
                 [disabled]="!displayService.canUndo()"

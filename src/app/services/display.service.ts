@@ -5,11 +5,18 @@ import {Diagram} from '../classes/diagram/diagram';
 import {PetriNet, ProcessNet} from '../classes/diagram/diagram-types';
 import {ReachabilityGraph} from '../classes/reachability/reachability-graph';
 import {Marking} from '../classes/reachability/reachability-node';
+import {SketchSubMode} from '../components/toolbar/tool.types';
+
+export function isTouchDevice(): boolean {
+    return typeof window !== 'undefined' && ('ontouchstart' in window || (navigator?.maxTouchPoints ?? 0) > 0);
+}
 
 @Injectable({
     providedIn: 'root'
 })
 export class DisplayService {
+
+    readonly sketchSubMode = signal<SketchSubMode>(isTouchDevice() ? 'move' : 'draw');
 
     public petriNetSet = computed(() => {
         const diagram = this.diagram();
@@ -70,6 +77,10 @@ export class DisplayService {
         this.firingSequencesPetriNetPreview.set(diagram.clone());
         this.reachabilityPetriNetPreview.set(diagram.clone());
         this.processNetPetriNetPreview.set(diagram.clone());
+    }
+
+    public setSketchSubMode(mode: SketchSubMode): void {
+        this.sketchSubMode.set(mode);
     }
 
     public saveHistoryStep(): void {

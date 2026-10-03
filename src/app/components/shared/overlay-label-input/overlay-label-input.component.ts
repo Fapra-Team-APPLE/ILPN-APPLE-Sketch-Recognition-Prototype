@@ -34,6 +34,7 @@ import {OverlayEditService, OverlayEditState, OverlayLabelInputInterface} from '
                    (keydown.escape)="edit.onCancel()"
                    (blur)="onBlur(edit)"
                    (pointerdown)="$event.stopPropagation(); $any($event.target).focus()"
+                   (pointerup)="$event.stopPropagation()"
                    (touchstart)="$event.stopPropagation(); $any($event.target).focus()" />
         }
     `,
@@ -74,6 +75,9 @@ export class OverlayLabelInputComponent implements OverlayLabelInputInterface, O
     private readonly overlayInputRef = viewChild<ElementRef<HTMLInputElement>>('overlayInput');
     private readonly cd = inject(ChangeDetectorRef);
 
+    // Flag, um zu verhindern, dass das blur-Event sofort nach dem focus-Event ausgelöst wird
+    private justFocused = false;
+
     constructor() {
         this.overlayEditService.register(this);
     }
@@ -88,7 +92,12 @@ export class OverlayLabelInputComponent implements OverlayLabelInputInterface, O
         const inputEl = this.overlayInputRef()?.nativeElement;
         if (inputEl) {
             inputEl.value = value;
+            this.justFocused = true;
             inputEl.focus();
+            // Flag nach kurzer Zeit zurücksetzen
+            setTimeout(() => {
+                this.justFocused = false;
+            }, 50);
         }
     }
 
@@ -104,6 +113,15 @@ export class OverlayLabelInputComponent implements OverlayLabelInputInterface, O
     }
 
     onBlur(edit: OverlayEditState): void {
+        if (this.justFocused) { // Verhindern, dass das blur-Event sofort nach dem focus-Event ausgelöst wird
+            const inputEl = this.overlayInputRef()?.nativeElement;
+            // Focus zurücksetzen
+            if (inputEl) {
+                inputEl.focus();
+            }
+            return;
+        }
+
         const current = this.overlayEditService.activeEdit();
         if (current === edit) {
             if (edit.isInvalid()) {

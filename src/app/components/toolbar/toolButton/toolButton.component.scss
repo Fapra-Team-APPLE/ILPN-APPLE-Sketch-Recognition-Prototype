@@ -32,3 +32,23 @@
         flex-shrink: 0; // Verhindert Bug, bei dem der aktivierte globale Toggle-Switch dafür sorgt, dass die button icons nach rechts verschoben werden
     }
 }
+
+:host(.group-start) .shape-btn {
+    margin-right: -1px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+
+    &.toolActive {
+        z-index: 1;
+    }
+}
+
+:host(.group-end) .shape-btn {
+    margin-left: -1px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+
+    &.toolActive {
+        z-index: 1;
+    }
+}
